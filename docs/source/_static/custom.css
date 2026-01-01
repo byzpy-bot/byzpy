@@ -1,0 +1,44 @@
+:root {
+  --sig-name-color: #1d70b8;
+  --sig-param-color: #d9480f;
+  --sig-paren-color: #6c757d;
+  --sig-return-color: #2b8a3e;
+}
+
+.sig-name,
+.descname {
+  color: var(--sig-name-color);
+  font-weight: 600;
+}
+
+.sig-param {
+  color: var(--sig-param-color);
+  font-weight: 500;
+}
+
+.sig-paren,
+.sig-return,
+.sig-return-typehint {
+  color: var(--sig-paren-color);
+}
+
+.sig-return .sig-name {
+  color: var(--sig-return-color);
+}
+
+dl.field-list dt {
+  background: rgba(29, 112, 184, 0.1);
+  border-left: 4px solid var(--sig-name-color);
+  padding: 0.2rem 0.5rem;
+  font-weight: 600;
+}
+
+dl.field-list dd {
+  margin-bottom: 0.8rem;
+  padding-left: 0.5rem;
+}
+
+.admonition.parameters p:first-child,
+.admonition.returns p:first-child {
+  margin-top: 0;
+}

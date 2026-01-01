@@ -1,0 +1,6 @@
+global-exclude __pycache__ *.py[cod]
+prune byzpy.egg-info
+prune .pytest_cache
+prune dist
+prune build
+prune docs/_build
