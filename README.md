@@ -7,7 +7,7 @@
   <a href="https://pypi.org/project/byzpy/"><img src="https://img.shields.io/pypi/pyversions/byzpy.svg?logo=python&label=Python" alt="Python versions"></a>
   <a href="https://github.com/Byzpy/byzpy/actions/workflows/tests.yml"><img src="https://github.com/Byzpy/byzpy/actions/workflows/tests.yml/badge.svg" alt="Tests"></a>
   <a href="https://codecov.io/gh/Byzpy/byzpy"><img src="https://codecov.io/gh/Byzpy/byzpy/branch/main/graph/badge.svg" alt="Codecov"></a>
-  <a href="https://github.com/Byzpy/byzpy/tree/main/docs"><img src="https://img.shields.io/badge/docs-sphinx-blue?logo=readthedocs" alt="Docs"></a>
+  <a href="https://byzpy.github.io/byzpy/"><img src="https://img.shields.io/badge/docs-sphinx-blue?logo=readthedocs" alt="Docs"></a>
 </p>
 
 ## ✨ Highlights
@@ -71,6 +71,9 @@ byzpy list aggregators       # discover built-ins
   ```
 
 ## 📚 Documentation
+
+📖 **Full documentation is available at [byzpy.github.io/byzpy/](https://byzpy.github.io/byzpy/)**
+
 Build the docs locally:
 ```bash
 pip install -r docs/requirements.txt

@@ -34,7 +34,7 @@ classifiers = [
 
 [project.urls]
 Homepage = "https://github.com/Byzpy/byzpy"
-Documentation = "https://github.com/Byzpy/byzpy/tree/main/docs"
+Documentation = "https://byzpy.github.io/byzpy/"
 Source = "https://github.com/Byzpy/byzpy"
 Issues = "https://github.com/Byzpy/byzpy/issues"
 
