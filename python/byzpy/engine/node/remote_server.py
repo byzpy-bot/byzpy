@@ -216,11 +216,22 @@ class RemoteNodeServer:
         except asyncio.CancelledError:
             pass
         finally:
-            writer.close()
+            # Clean up writer, but don't await if loop is closed
             try:
-                await writer.wait_closed()
+                writer.close()
+                try:
+                    await writer.wait_closed()
+                except (RuntimeError, Exception):
+                    # RuntimeError: Event loop is closed - ignore
+                    # Other exceptions also ignored for cleanup
+                    pass
+            except RuntimeError:
+                # Event loop is closed, can't close writer properly
+                # Just skip writer cleanup
+                pass
             except Exception:
                 pass
+
             if remote_node_id and remote_node_id in self._client_connections:
                 del self._client_connections[remote_node_id]
             if writer in self._client_writers:

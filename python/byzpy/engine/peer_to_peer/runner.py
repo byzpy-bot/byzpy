@@ -188,6 +188,11 @@ class DecentralizedPeerToPeer:
         self._decentralized_nodes: Dict[str, DecentralizedNode] = {}
         self._gradient_cache: Dict[str, List[torch.Tensor]] = {}  # Cache gradients received per node
 
+    @property
+    def cluster(self):
+        """Access the underlying DecentralizedCluster instance."""
+        return self._cluster
+
     async def start(self) -> None:
         """Start all nodes in the cluster."""
         n = len(self.honest) + len(self.byz)
