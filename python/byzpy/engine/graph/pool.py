@@ -221,6 +221,12 @@ class ActorPool:
             await self._available.put(worker)
             rotations += 1
 
+        # Check if any worker in the pool has the requested affinity
+        # before waiting
+        has_affinity = any(affinity in worker.capabilities for worker in self._workers)
+        if not has_affinity:
+            raise RuntimeError("No actor in the pool")
+
         # no idle worker with that affinity; wait until one is released
         loop = asyncio.get_running_loop()
         fut: asyncio.Future[_PoolWorker] = loop.create_future()
