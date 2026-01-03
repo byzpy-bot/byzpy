@@ -100,7 +100,7 @@ class Clipping(PreAggregator):
                 data = np.array(flat, copy=False)
                 outputs: List[Any] = []
                 for row in data:
-                    reshaped = row.reshape(self._flat_shape)
+                    reshaped = np.array(row, copy=True).reshape(self._flat_shape)
                     outputs.append(_to_like(reshaped, self._like_template))
                 return outputs
         finally:
