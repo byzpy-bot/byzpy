@@ -1,9 +1,11 @@
 # byzpy/engine/actor/channels.py
 from __future__ import annotations
+
 from dataclasses import dataclass
-from typing import Any, Optional, List, Dict, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 from .ipc import unwrap_payload
+
 
 # -------------------------------------------------------------------
 # Public endpoint type (imported by backends)
@@ -11,9 +13,10 @@ from .ipc import unwrap_payload
 @dataclass(frozen=True)
 class Endpoint:
     """A globally addressable location for an actor."""
-    scheme: str          # "thread" | "process" | "tcp"
-    address: str         # "" for local thread/process; "host:port" for tcp
-    actor_id: str        # unique within scheme/address
+
+    scheme: str  # "thread" | "process" | "tcp"
+    address: str  # "" for local thread/process; "host:port" for tcp
+    actor_id: str  # unique within scheme/address
 
 
 # -------------------------------------------------------------------
@@ -32,6 +35,7 @@ class ChannelRef:
     - `send(to, payload)` delivers to a remote/local Endpoint.
     - `recv(timeout=...)` gets the next payload, with universal IPC unwrapping.
     """
+
     __slots__ = ("_backend", "_local", "_name")
 
     def __init__(self, backend, local_ep: Endpoint, name: str):
@@ -45,9 +49,7 @@ class ChannelRef:
         )
 
     async def recv(self, *, timeout: Optional[float] = None) -> Any:
-        raw = await self._backend.chan_get(
-            ep=self._local, name=self._name, timeout=timeout
-        )
+        raw = await self._backend.chan_get(ep=self._local, name=self._name, timeout=timeout)
         return _unwrap_ipc(raw)
 
 

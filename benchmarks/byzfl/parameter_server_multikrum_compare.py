@@ -37,9 +37,10 @@ class BenchmarkRun:
 def _require_byzfl():
     """Import ByzFL components, raising SystemExit if not available."""
     try:
-        from byzfl import Client, Server, ByzantineClient, DataDistributor
+        from byzfl import ByzantineClient, Client, DataDistributor, Server
         from byzfl.utils.misc import set_random_seed
         from torch import Tensor
+
         return Client, Server, ByzantineClient, DataDistributor, set_random_seed, Tensor
     except ImportError as exc:
         raise SystemExit(
@@ -64,38 +65,45 @@ def _train_byzfl(
     set_random_seed(seed)
 
     # Data preparation
-    transform = transforms.Compose([transforms.ToTensor(), transforms.Normalize((0.1307,), (0.3081,))])
+    transform = transforms.Compose(
+        [transforms.ToTensor(), transforms.Normalize((0.1307,), (0.3081,))]
+    )
     train_dataset = datasets.MNIST(root=data_root, train=True, download=True, transform=transform)
     train_dataset.targets = Tensor(train_dataset.targets).long()
     train_loader = data.DataLoader(train_dataset, shuffle=True, batch_size=batch_size)
 
     # Distribute data among clients using non-IID Dirichlet distribution
-    data_distributor = DataDistributor({
-        "data_distribution_name": "dirichlet_niid",
-        "distribution_parameter": 0.5,
-        "nb_honest": num_honest,
-        "data_loader": train_loader,
-        "batch_size": batch_size,
-    })
+    data_distributor = DataDistributor(
+        {
+            "data_distribution_name": "dirichlet_niid",
+            "distribution_parameter": 0.5,
+            "nb_honest": num_honest,
+            "data_loader": train_loader,
+            "batch_size": batch_size,
+        }
+    )
     client_dataloaders = data_distributor.split_data()
 
     # Initialize honest clients
     honest_clients = [
-        Client({
-            "model_name": "cnn_mnist",
-            "device": "cpu",
-            "optimizer_name": "SGD",
-            "learning_rate": lr,
-            "loss_name": "NLLLoss",
-            "weight_decay": 0.0001,
-            "milestones": [rounds],
-            "learning_rate_decay": 0.25,
-            "LabelFlipping": False,
-            "training_dataloader": client_dataloaders[i],
-            "momentum": 0.9,
-            "nb_labels": 10,
-            "store_per_client_metrics": False,
-        }) for i in range(num_honest)
+        Client(
+            {
+                "model_name": "cnn_mnist",
+                "device": "cpu",
+                "optimizer_name": "SGD",
+                "learning_rate": lr,
+                "loss_name": "NLLLoss",
+                "weight_decay": 0.0001,
+                "milestones": [rounds],
+                "learning_rate_decay": 0.25,
+                "LabelFlipping": False,
+                "training_dataloader": client_dataloaders[i],
+                "momentum": 0.9,
+                "nb_labels": 10,
+                "store_per_client_metrics": False,
+            }
+        )
+        for i in range(num_honest)
     ]
 
     # Prepare test dataset
@@ -104,18 +112,20 @@ def _train_byzfl(
     test_loader = data.DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
 
     # Server setup with MultiKrum aggregator
-    server = Server({
-        "device": "cpu",
-        "model_name": "cnn_mnist",
-        "test_loader": test_loader,
-        "optimizer_name": "SGD",
-        "learning_rate": lr,
-        "weight_decay": 0.0001,
-        "milestones": [rounds],
-        "learning_rate_decay": 0.25,
-        "aggregator_info": {"name": "MultiKrum", "parameters": {"f": f}},
-        "pre_agg_list": [],
-    })
+    server = Server(
+        {
+            "device": "cpu",
+            "model_name": "cnn_mnist",
+            "test_loader": test_loader,
+            "optimizer_name": "SGD",
+            "learning_rate": lr,
+            "weight_decay": 0.0001,
+            "milestones": [rounds],
+            "learning_rate_decay": 0.25,
+            "aggregator_info": {"name": "MultiKrum", "parameters": {"f": f}},
+            "pre_agg_list": [],
+        }
+    )
 
     # Byzantine client setup
     attack = {

@@ -3,24 +3,27 @@ Category 1: DecentralizedPeerToPeer Refactoring Tests
 
 Tests for the refactored DecentralizedPeerToPeer implementation using DecentralizedCluster.
 """
+
 from __future__ import annotations
 
 import asyncio
+
 import pytest
 import torch
 
-from byzpy.engine.peer_to_peer.train import PeerToPeer
-from byzpy.engine.peer_to_peer.topology import Topology
-from byzpy.engine.node.cluster import DecentralizedCluster
-from byzpy.engine.node.decentralized import DecentralizedNode
-from byzpy.engine.node.context import ProcessContext, RemoteContext
-from byzpy.engine.node.remote_server import RemoteNodeServer
-from byzpy.engine.node.actors import HonestNodeActor, ByzantineNodeActor
 from byzpy.engine.actor.backends.thread import ThreadActorBackend
+from byzpy.engine.node.actors import ByzantineNodeActor, HonestNodeActor
+from byzpy.engine.node.cluster import DecentralizedCluster
+from byzpy.engine.node.context import ProcessContext, RemoteContext
+from byzpy.engine.node.decentralized import DecentralizedNode
+from byzpy.engine.node.remote_server import RemoteNodeServer
+from byzpy.engine.peer_to_peer.topology import Topology
+from byzpy.engine.peer_to_peer.train import PeerToPeer
 
 
 class _StubHonestNode:
     """Stub honest node for testing."""
+
     def __init__(self, grad: torch.Tensor):
         self._grad = grad
         self.lr = 0.1
@@ -36,6 +39,7 @@ class _StubHonestNode:
 
 class _StubByzantineNode:
     """Stub byzantine node for testing."""
+
     async def p2p_broadcast_vector(self, neighbor_vectors=None, like=None):
         if like is not None:
             return torch.zeros_like(like)
@@ -61,7 +65,6 @@ async def create_byzantine_actor() -> ByzantineNodeActor:
         backend=backend,
     )
     return actor
-
 
 
 @pytest.mark.asyncio
@@ -129,7 +132,6 @@ async def test_decentralizedpeertopeer_creates_decentralizednodes():
     await p2p.shutdown()
 
 
-
 @pytest.mark.asyncio
 async def test_decentralizedpeertopeer_uses_processcontext_by_default():
     """Verify DecentralizedPeerToPeer uses ProcessContext by default."""
@@ -193,6 +195,7 @@ async def test_decentralizedpeertopeer_supports_remote_context():
 
 # Additional Category 1 tests
 
+
 @pytest.mark.asyncio
 async def test_decentralizedpeertopeer_supports_mixed_contexts():
     """Verify DecentralizedPeerToPeer can use different contexts for different nodes."""
@@ -231,12 +234,8 @@ async def test_decentralizedpeertopeer_supports_mixed_contexts():
 async def test_decentralizedpeertopeer_node_count_matches_input():
     """Verify DecentralizedPeerToPeer creates correct number of nodes."""
     topology = Topology.ring(5, k=1)
-    honest_nodes = [
-        await create_honest_actor(torch.tensor([float(i), 0.0])) for i in range(3)
-    ]
-    byz_nodes = [
-        await create_byzantine_actor() for _ in range(2)
-    ]
+    honest_nodes = [await create_honest_actor(torch.tensor([float(i), 0.0])) for i in range(3)]
+    byz_nodes = [await create_byzantine_actor() for _ in range(2)]
 
     p2p = PeerToPeer(
         honest_nodes=honest_nodes,
@@ -249,4 +248,3 @@ async def test_decentralizedpeertopeer_node_count_matches_input():
     assert len(p2p._runner._cluster.nodes) == 5
 
     await p2p.shutdown()
-

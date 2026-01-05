@@ -27,7 +27,12 @@ def _parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Benchmark ByzFL's Centered Clipping aggregator.")
     parser.add_argument("--num-grads", type=int, default=64, help="Number of gradients (n).")
     parser.add_argument("--grad-dim", type=int, default=65536, help="Gradient dimension.")
-    parser.add_argument("--iters", type=int, default=10, help="Number of centered clipping iterations (L).")
+    parser.add_argument(
+        "--iters",
+        type=int,
+        default=10,
+        help="Number of centered clipping iterations (L).",
+    )
     parser.add_argument("--tau", type=float, default=0.1, help="Clipping threshold (tau).")
     parser.add_argument("--warmup", type=int, default=0, help="Warm-up iterations.")
     parser.add_argument("--repeat", type=int, default=2, help="Timed iterations.")

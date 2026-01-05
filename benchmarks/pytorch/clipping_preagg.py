@@ -10,15 +10,16 @@ from typing import Sequence
 
 import torch
 
-from byzpy.pre_aggregators.clipping import Clipping
 from byzpy.engine.graph.ops import make_single_operator_graph
 from byzpy.engine.graph.pool import ActorPool, ActorPoolConfig
 from byzpy.engine.graph.scheduler import NodeScheduler
+from byzpy.pre_aggregators.clipping import Clipping
 
 try:
-    from ._worker_args import DEFAULT_WORKER_COUNTS, parse_worker_counts, coerce_worker_counts
+    from ._worker_args import DEFAULT_WORKER_COUNTS, coerce_worker_counts, parse_worker_counts
 except ImportError:
-    from _worker_args import DEFAULT_WORKER_COUNTS, parse_worker_counts, coerce_worker_counts  # type: ignore
+    from _worker_args import DEFAULT_WORKER_COUNTS  # type: ignore
+    from _worker_args import coerce_worker_counts, parse_worker_counts
 
 
 @dataclass(frozen=True)
@@ -59,7 +60,9 @@ def _make_vectors(n: int, dim: int, seed: int) -> list[torch.Tensor]:
     return [torch.randn(dim, generator=gen) for _ in range(n)]
 
 
-def _time_direct(pre: Clipping, vecs: Sequence[torch.Tensor], *, iterations: int, warmup: int) -> float:
+def _time_direct(
+    pre: Clipping, vecs: Sequence[torch.Tensor], *, iterations: int, warmup: int
+) -> float:
     for _ in range(warmup):
         pre.pre_aggregate(vecs)
     start = time.perf_counter()

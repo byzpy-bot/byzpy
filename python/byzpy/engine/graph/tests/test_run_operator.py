@@ -1,23 +1,26 @@
 """
 Tests for run_operator convenience function.
 """
+
 from __future__ import annotations
 
 import inspect
 import time
-import torch
-import pytest
 from typing import Any, Mapping, Sequence
 
+import pytest
+import torch
+
 from byzpy import run_operator
-from byzpy.engine.graph.executor import OperatorExecutor, run_operator as run_operator_from_module
-from byzpy.engine.graph.operator import Operator, OpContext
-from byzpy.engine.graph.pool import ActorPoolConfig
 from byzpy.aggregators.coordinate_wise.median import CoordinateWiseMedian
 from byzpy.aggregators.geometric_wise.krum import MultiKrum
-from byzpy.pre_aggregators.clipping import Clipping
-from byzpy.pre_aggregators.bucketing import Bucketing
 from byzpy.attacks.empire import EmpireAttack
+from byzpy.engine.graph.executor import OperatorExecutor
+from byzpy.engine.graph.executor import run_operator as run_operator_from_module
+from byzpy.engine.graph.operator import OpContext, Operator
+from byzpy.engine.graph.pool import ActorPoolConfig
+from byzpy.pre_aggregators.bucketing import Bucketing
+from byzpy.pre_aggregators.clipping import Clipping
 
 
 def _make_gradients(n: int, dim: int, seed: int = 0) -> list[torch.Tensor]:
@@ -58,7 +61,7 @@ class TestRunOperatorBasic:
         result = await run_operator(
             operator=operator,
             inputs={"gradients": gradients},
-            pool_config=ActorPoolConfig(backend="process", count=2)
+            pool_config=ActorPoolConfig(backend="process", count=2),
         )
 
         # Verify result is correct
@@ -90,12 +93,11 @@ class TestRunOperatorBasic:
         result = await run_operator(
             operator=operator,
             inputs={"custom_key": gradients},
-            input_keys=("custom_key",)
+            input_keys=("custom_key",),
         )
 
         assert isinstance(result, torch.Tensor)
         assert result.shape == (1000,)
-
 
 
 class TestRunOperatorIntegration:
@@ -147,13 +149,12 @@ class TestRunOperatorIntegration:
         result = await run_operator(
             operator=operator,
             inputs={"honest_grads": honest_grads},
-            input_keys=("honest_grads",)
+            input_keys=("honest_grads",),
         )
 
         # Compare with direct call
         direct_result = operator.apply(honest_grads=honest_grads)
         assert torch.allclose(result, direct_result, atol=1e-6)
-
 
 
 class TestRunOperatorEquivalence:
@@ -184,9 +185,7 @@ class TestRunOperatorEquivalence:
 
         # Run with run_operator()
         result1 = await run_operator(
-            operator=operator,
-            inputs={"gradients": gradients},
-            pool_config=pool_config
+            operator=operator, inputs={"gradients": gradients}, pool_config=pool_config
         )
 
         # Run with OperatorExecutor
@@ -221,7 +220,6 @@ class TestRunOperatorEquivalence:
         assert "async with" in source or "__aenter__" in source
 
 
-
 class TestRunOperatorPoolConfig:
     """Category 4: Pool configuration tests."""
 
@@ -234,7 +232,7 @@ class TestRunOperatorPoolConfig:
         result = await run_operator(
             operator=operator,
             inputs={"gradients": gradients},
-            pool_config=ActorPoolConfig(backend="process", count=2)
+            pool_config=ActorPoolConfig(backend="process", count=2),
         )
 
         assert isinstance(result, torch.Tensor)
@@ -251,7 +249,7 @@ class TestRunOperatorPoolConfig:
             pool_config=[
                 ActorPoolConfig(backend="process", count=2),
                 ActorPoolConfig(backend="thread", count=2),
-            ]
+            ],
         )
 
         assert isinstance(result, torch.Tensor)
@@ -266,14 +264,14 @@ class TestRunOperatorPoolConfig:
         result_process = await run_operator(
             operator=operator,
             inputs={"gradients": gradients},
-            pool_config=ActorPoolConfig(backend="process", count=2)
+            pool_config=ActorPoolConfig(backend="process", count=2),
         )
 
         # Test thread backend
         result_thread = await run_operator(
             operator=operator,
             inputs={"gradients": gradients},
-            pool_config=ActorPoolConfig(backend="thread", count=2)
+            pool_config=ActorPoolConfig(backend="thread", count=2),
         )
 
         # Results should be identical
@@ -286,13 +284,10 @@ class TestRunOperatorPoolConfig:
         gradients = _make_gradients(64, 1000)
 
         result = await run_operator(
-            operator=operator,
-            inputs={"gradients": gradients},
-            pool_config=None
+            operator=operator, inputs={"gradients": gradients}, pool_config=None
         )
 
         assert isinstance(result, torch.Tensor)
-
 
 
 class TestRunOperatorErrorHandling:
@@ -318,7 +313,7 @@ class TestRunOperatorErrorHandling:
             await run_operator(
                 operator=operator,
                 inputs={"gradients": gradients},
-                input_keys=("invalid_key",)
+                input_keys=("invalid_key",),
             )
 
     @pytest.mark.asyncio
@@ -342,12 +337,13 @@ class TestRunOperatorErrorHandling:
             await run_operator(
                 operator=operator,
                 inputs={"gradients": gradients},
-                pool_config=ActorPoolConfig(backend="invalid_backend", count=2)
+                pool_config=ActorPoolConfig(backend="invalid_backend", count=2),
             )
 
     @pytest.mark.asyncio
     async def test_exception_during_execution(self):
         """Test 5.5: Exception During Execution"""
+
         # Create an operator that raises an exception
         class FailingOperator(Operator):
             name = "failing"
@@ -366,7 +362,6 @@ class TestRunOperatorErrorHandling:
         gradients = _make_gradients(64, 1000)
         result = await run_operator(operator=operator2, inputs={"gradients": gradients})
         assert isinstance(result, torch.Tensor)
-
 
 
 class TestRunOperatorPerformance:
@@ -416,7 +411,7 @@ class TestRunOperatorPerformance:
             await run_operator(
                 operator=operator,
                 inputs={"gradients": gradients},
-                pool_config=pool_config
+                pool_config=pool_config,
             )
             run_operator_times.append(time.perf_counter() - start)
 
@@ -499,7 +494,6 @@ class TestRunOperatorPerformance:
         assert mean_time > 0  # Just verify it runs
 
 
-
 class TestRunOperatorEdgeCases:
     """Category 7: Edge case tests."""
 
@@ -521,8 +515,7 @@ class TestRunOperatorEdgeCases:
         # Extra keys should be ignored (or cause error if validation is strict)
         # NodeScheduler will ignore extra keys, so this should work
         result = await run_operator(
-            operator=operator,
-            inputs={"gradients": gradients, "extra_key": 42}
+            operator=operator, inputs={"gradients": gradients, "extra_key": 42}
         )
         assert isinstance(result, torch.Tensor)
 
@@ -562,7 +555,6 @@ class TestRunOperatorEdgeCases:
         for _ in range(5):
             result = await run_operator(operator=operator1, inputs={"gradients": gradients1})
             assert isinstance(result, torch.Tensor)
-
 
 
 class TestRunOperatorAPI:
@@ -608,7 +600,6 @@ class TestRunOperatorAPI:
         assert "inputs" in doc.lower()
         assert "pool_config" in doc.lower() or "pool" in doc.lower()
         assert "return" in doc.lower() or "returns" in doc.lower()
-
 
 
 class TestRunOperatorRealWorld:

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+
 import pytest
 
 from byzpy.engine.graph.graph import ComputationGraph, GraphNode, graph_input
@@ -34,6 +35,7 @@ def create_message_aware_scheduler(graph=None):
 
 # Category 1: MessageAwareNodeScheduler Core Functionality
 
+
 def test_messageawarenodescheduler_can_be_created():
     """Verify MessageAwareNodeScheduler can be instantiated."""
     graph = create_simple_graph()
@@ -41,8 +43,8 @@ def test_messageawarenodescheduler_can_be_created():
 
     assert isinstance(scheduler, NodeScheduler)
     assert scheduler.graph is graph
-    assert hasattr(scheduler, 'wait_for_message')
-    assert hasattr(scheduler, 'deliver_message')
+    assert hasattr(scheduler, "wait_for_message")
+    assert hasattr(scheduler, "deliver_message")
 
 
 @pytest.mark.asyncio
@@ -95,10 +97,7 @@ async def test_messageawarenodescheduler_deliver_message_wakes_multiple_waiters(
     scheduler = create_message_aware_scheduler()
 
     # Create multiple waiters
-    waiters = [
-        asyncio.create_task(scheduler.wait_for_message("test_msg"))
-        for _ in range(5)
-    ]
+    waiters = [asyncio.create_task(scheduler.wait_for_message("test_msg")) for _ in range(5)]
 
     await asyncio.sleep(0.01)  # Let them start waiting
 
@@ -158,6 +157,7 @@ async def test_messageawarenodescheduler_multiple_message_types_independent():
 
 
 # Category 5: Complex Message-Driven Scenarios
+
 
 @pytest.mark.asyncio
 async def test_graph_with_multiple_message_inputs():
@@ -255,10 +255,7 @@ async def test_messageawarenodescheduler_concurrent_deliveries():
     scheduler = create_message_aware_scheduler()
 
     # Create multiple waiters
-    waiters = [
-        asyncio.create_task(scheduler.wait_for_message(f"msg_{i}"))
-        for i in range(10)
-    ]
+    waiters = [asyncio.create_task(scheduler.wait_for_message(f"msg_{i}")) for i in range(10)]
 
     await asyncio.sleep(0.01)
 
@@ -285,4 +282,3 @@ async def test_messageawarenodescheduler_wait_cancellation():
 
     with pytest.raises(asyncio.CancelledError):
         await wait_task
-

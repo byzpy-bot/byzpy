@@ -5,7 +5,6 @@ from typing import Any, Iterable, List, Sequence
 
 import numpy as np
 
-from .base import PreAggregator
 from ..aggregators._chunking import select_adaptive_chunk_size
 from ..aggregators.coordinate_wise._tiling import flatten_gradients
 from ..configs.backend import get_backend
@@ -16,6 +15,7 @@ from ..engine.storage.shared_store import (
     open_tensor,
     register_tensor,
 )
+from .base import PreAggregator
 
 try:
     import torch

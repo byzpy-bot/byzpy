@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
 import asyncio
+from dataclasses import dataclass
 from typing import Any, Dict, Iterable, Mapping, Optional, Sequence
 
 from ..graph.graph import ComputationGraph
@@ -166,7 +166,9 @@ class HonestNodeApplication(NodeApplication):
     AGGREGATION_PIPELINE = "aggregate"
     GRADIENT_PIPELINE = "honest_gradient"
 
-    async def aggregate(self, *, gradients: Sequence[Any], metadata: Optional[Mapping[str, Any]] = None) -> Any:
+    async def aggregate(
+        self, *, gradients: Sequence[Any], metadata: Optional[Mapping[str, Any]] = None
+    ) -> Any:
         if not self.has_pipeline(self.AGGREGATION_PIPELINE):
             raise KeyError(f"No aggregation pipeline registered on node {self.name!r}.")
         result = await self.run_pipeline(
@@ -177,7 +179,9 @@ class HonestNodeApplication(NodeApplication):
         # Return the first (and typically only) output value.
         return next(iter(result.values()))
 
-    def aggregate_sync(self, *, gradients: Sequence[Any], metadata: Optional[Mapping[str, Any]] = None) -> Any:
+    def aggregate_sync(
+        self, *, gradients: Sequence[Any], metadata: Optional[Mapping[str, Any]] = None
+    ) -> Any:
         if not self.has_pipeline(self.AGGREGATION_PIPELINE):
             raise KeyError(f"No aggregation pipeline registered on node {self.name!r}.")
         result = self.run_pipeline_sync(
@@ -187,7 +191,9 @@ class HonestNodeApplication(NodeApplication):
         )
         return next(iter(result.values()))
 
-    async def honest_gradient(self, inputs: Mapping[str, Any], *, metadata: Optional[Mapping[str, Any]] = None) -> Any:
+    async def honest_gradient(
+        self, inputs: Mapping[str, Any], *, metadata: Optional[Mapping[str, Any]] = None
+    ) -> Any:
         if not self.has_pipeline(self.GRADIENT_PIPELINE):
             raise KeyError(f"No honest gradient pipeline registered on node {self.name!r}.")
         result = await self.run_pipeline(
@@ -197,7 +203,9 @@ class HonestNodeApplication(NodeApplication):
         )
         return next(iter(result.values()))
 
-    def honest_gradient_sync(self, inputs: Mapping[str, Any], *, metadata: Optional[Mapping[str, Any]] = None) -> Any:
+    def honest_gradient_sync(
+        self, inputs: Mapping[str, Any], *, metadata: Optional[Mapping[str, Any]] = None
+    ) -> Any:
         if not self.has_pipeline(self.GRADIENT_PIPELINE):
             raise KeyError(f"No honest gradient pipeline registered on node {self.name!r}.")
         result = self.run_pipeline_sync(
@@ -228,7 +236,9 @@ class ByzantineNodeApplication(NodeApplication):
 
     ATTACK_PIPELINE = "attack"
 
-    async def run_attack(self, *, inputs: Mapping[str, Any], metadata: Optional[Mapping[str, Any]] = None) -> Any:
+    async def run_attack(
+        self, *, inputs: Mapping[str, Any], metadata: Optional[Mapping[str, Any]] = None
+    ) -> Any:
         if not self.has_pipeline(self.ATTACK_PIPELINE):
             raise KeyError(f"No attack pipeline registered on node {self.name!r}.")
         result = await self.run_pipeline(
@@ -238,7 +248,9 @@ class ByzantineNodeApplication(NodeApplication):
         )
         return next(iter(result.values()))
 
-    def run_attack_sync(self, *, inputs: Mapping[str, Any], metadata: Optional[Mapping[str, Any]] = None) -> Any:
+    def run_attack_sync(
+        self, *, inputs: Mapping[str, Any], metadata: Optional[Mapping[str, Any]] = None
+    ) -> Any:
         if not self.has_pipeline(self.ATTACK_PIPELINE):
             raise KeyError(f"No attack pipeline registered on node {self.name!r}.")
         result = self.run_pipeline_sync(

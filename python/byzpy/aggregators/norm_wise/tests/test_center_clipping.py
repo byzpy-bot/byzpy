@@ -1,5 +1,5 @@
-import torch
 import pytest
+import torch
 
 from byzpy.aggregators.norm_wise import CenteredClipping
 from byzpy.engine.graph.operator import OpContext

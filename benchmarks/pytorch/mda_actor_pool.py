@@ -20,6 +20,7 @@ from byzpy.aggregators.geometric_wise.minimum_diameter_average import MinimumDia
 from byzpy.engine.graph.ops import make_single_operator_graph
 from byzpy.engine.graph.pool import ActorPool, ActorPoolConfig
 from byzpy.engine.graph.scheduler import NodeScheduler
+
 try:
     from ._worker_args import DEFAULT_WORKER_COUNTS, coerce_worker_counts, parse_worker_counts
 except ImportError:
@@ -37,11 +38,20 @@ class BenchmarkRun:
 
 
 def _parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Benchmark Minimum Diameter Averaging with ActorPool vs single-thread.")
+    parser = argparse.ArgumentParser(
+        description="Benchmark Minimum Diameter Averaging with ActorPool vs single-thread."
+    )
     parser.add_argument("--num-grads", type=int, default=18, help="Number of gradients (n).")
     parser.add_argument("--grad-dim", type=int, default=2048, help="Gradient dimension.")
-    parser.add_argument("--f", type=int, default=6, help="Number of vectors to drop (MDA parameter).")
-    parser.add_argument("--chunk-size", type=int, default=256, help="Combinations evaluated per subtask.")
+    parser.add_argument(
+        "--f", type=int, default=6, help="Number of vectors to drop (MDA parameter)."
+    )
+    parser.add_argument(
+        "--chunk-size",
+        type=int,
+        default=256,
+        help="Combinations evaluated per subtask.",
+    )
     default_workers = ",".join(str(count) for count in DEFAULT_WORKER_COUNTS)
     parser.add_argument(
         "--pool-workers",
@@ -49,7 +59,12 @@ def _parse_args() -> argparse.Namespace:
         default=default_workers,
         help=f"Comma/space separated worker counts for ActorPool runs (default: {default_workers}).",
     )
-    parser.add_argument("--pool-backend", type=str, default="process", help="Actor backend (thread/process/...).")
+    parser.add_argument(
+        "--pool-backend",
+        type=str,
+        default="process",
+        help="Actor backend (thread/process/...).",
+    )
     parser.add_argument("--warmup", type=int, default=1, help="Warm-up iterations per mode.")
     parser.add_argument("--repeat", type=int, default=3, help="Timed iterations per mode.")
     parser.add_argument("--seed", type=int, default=0, help="Random seed for synthetic gradients.")

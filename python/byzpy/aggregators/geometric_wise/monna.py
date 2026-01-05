@@ -4,17 +4,17 @@ from typing import Any, Iterable, Sequence
 
 import numpy as np
 
-from ..base import Aggregator
-from .._chunking import select_adaptive_chunk_size
 from ...configs.backend import get_backend
-from ...engine.graph.subtask import SubTask
 from ...engine.graph.operator import OpContext
+from ...engine.graph.subtask import SubTask
 from ...engine.storage.shared_store import (
     SharedTensorHandle,
-    register_tensor,
-    open_tensor,
     cleanup_tensor,
+    open_tensor,
+    register_tensor,
 )
+from .._chunking import select_adaptive_chunk_size
+from ..base import Aggregator
 from ..coordinate_wise._tiling import flatten_gradients
 
 try:  # optional torch for conversions

@@ -21,7 +21,7 @@ def _load_subclasses(package: str, base: Type) -> List[str]:
         # Skip test modules
         if "tests" in mod_info.name.split("."):
             continue
-        
+
         try:
             mod = importlib.import_module(mod_info.name)
         except ImportError:

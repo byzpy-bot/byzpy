@@ -1,4 +1,5 @@
 from __future__ import annotations
+
 from typing import Sequence, Tuple, Type
 
 import torch
@@ -10,7 +11,7 @@ from torchvision import datasets, transforms
 from byzpy.aggregators.coordinate_wise import CoordinateWiseMedian
 from byzpy.attacks import EmpireAttack
 from byzpy.engine.graph.pool import ActorPoolConfig
-from byzpy.engine.node.distributed import DistributedHonestNode, DistributedByzantineNode
+from byzpy.engine.node.distributed import DistributedByzantineNode, DistributedHonestNode
 
 
 def _flatten_grads(model: nn.Module) -> torch.Tensor:
@@ -24,7 +25,7 @@ def _write_vector_into_grads_(model: nn.Module, vec: torch.Tensor) -> None:
     offset = 0
     for p in model.parameters():
         numel = p.numel()
-        chunk = vec[offset:offset + numel].view_as(p).to(p.device)
+        chunk = vec[offset : offset + numel].view_as(p).to(p.device)
         if p.grad is None:
             p.grad = chunk.clone()
         else:

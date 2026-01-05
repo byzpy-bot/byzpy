@@ -1,11 +1,12 @@
 """Remote node server for hosting DecentralizedNode instances."""
+
 from __future__ import annotations
 
 import asyncio
-from typing import Any, Dict, Optional, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, Dict, Optional
 
-from .remote_client import serialize_message, deserialize_message
-from .context import NodeContext, InProcessContext
+from .context import InProcessContext, NodeContext
+from .remote_client import deserialize_message, serialize_message
 
 if TYPE_CHECKING:
     from .decentralized import DecentralizedNode
@@ -50,10 +51,7 @@ class ServerNodeContext(NodeContext):
             client_writer = self._server._client_connections[to_node_id]
             from_node_id = self._node.node_id if self._node else "unknown"
             await self._server.send_message_to_client(
-                client_writer,
-                from_node_id,
-                message_type,
-                payload
+                client_writer, from_node_id, message_type, payload
             )
         else:
             raise ValueError(f"Node {to_node_id} not found (not local and not registered remote)")
@@ -118,20 +116,14 @@ class RemoteNodeServer:
         if self._running:
             return
 
-        self._server = await asyncio.start_server(
-            self._handle_client,
-            self.host,
-            self.port
-        )
+        self._server = await asyncio.start_server(self._handle_client, self.host, self.port)
         self._running = True
 
         async with self._server:
             await self._server.serve_forever()
 
     async def _handle_client(
-        self,
-        reader: asyncio.StreamReader,
-        writer: asyncio.StreamWriter
+        self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter
     ) -> None:
         """
         Handle incoming client connection.
@@ -140,7 +132,7 @@ class RemoteNodeServer:
             reader: Stream reader for receiving data
             writer: Stream writer for sending data
         """
-        client_addr = writer.get_extra_info('peername')
+        client_addr = writer.get_extra_info("peername")
         client_id = f"{client_addr[0]}:{client_addr[1]}"
         remote_node_id: Optional[str] = None
 
@@ -148,17 +140,11 @@ class RemoteNodeServer:
             while self._running:
                 try:
                     # Read length prefix
-                    length_bytes = await asyncio.wait_for(
-                        reader.readexactly(4),
-                        timeout=1.0
-                    )
-                    length = int.from_bytes(length_bytes, byteorder='big')
+                    length_bytes = await asyncio.wait_for(reader.readexactly(4), timeout=1.0)
+                    length = int.from_bytes(length_bytes, byteorder="big")
 
                     # Read message
-                    data = await asyncio.wait_for(
-                        reader.readexactly(length),
-                        timeout=5.0
-                    )
+                    data = await asyncio.wait_for(reader.readexactly(length), timeout=5.0)
 
                     msg = deserialize_message(data)
 
@@ -196,7 +182,7 @@ class RemoteNodeServer:
                             "payload": {"error": f"Node {to_node_id} not found"},
                         }
                         serialized = serialize_message(error_msg)
-                        length = len(serialized).to_bytes(4, byteorder='big')
+                        length = len(serialized).to_bytes(4, byteorder="big")
                         writer.write(length + serialized)
                         await writer.drain()
 
@@ -242,7 +228,7 @@ class RemoteNodeServer:
         client_writer: asyncio.StreamWriter,
         from_node_id: str,
         message_type: str,
-        payload: Any
+        payload: Any,
     ) -> None:
         """
         Send a message to a connected client.
@@ -261,7 +247,7 @@ class RemoteNodeServer:
 
         try:
             serialized = serialize_message(msg)
-            length = len(serialized).to_bytes(4, byteorder='big')
+            length = len(serialized).to_bytes(4, byteorder="big")
             client_writer.write(length + serialized)
             await client_writer.drain()
         except Exception:
@@ -286,4 +272,3 @@ class RemoteNodeServer:
 
 
 __all__ = ["RemoteNodeServer"]
-

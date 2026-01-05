@@ -3,21 +3,22 @@ Category 2: Message-Driven P2P Training Logic Tests
 
 Tests for half-step, aggregation, and broadcast pipelines.
 """
+
 from __future__ import annotations
 
 import asyncio
+
 import pytest
 import torch
 import torch.nn as nn
 
-from byzpy.engine.node.decentralized import DecentralizedNode
+from byzpy.aggregators.coordinate_wise import CoordinateWiseMedian
+from byzpy.engine.graph.graph import ComputationGraph, GraphInput, GraphNode
+from byzpy.engine.graph.ops import CallableOp, make_single_operator_graph
+from byzpy.engine.graph.pool import ActorPoolConfig
 from byzpy.engine.node.application import HonestNodeApplication
 from byzpy.engine.node.context import InProcessContext
-from byzpy.engine.graph.pool import ActorPoolConfig
-from byzpy.engine.graph.ops import CallableOp, make_single_operator_graph
-from byzpy.engine.graph.graph import ComputationGraph, GraphNode, GraphInput
-from byzpy.aggregators.coordinate_wise import CoordinateWiseMedian
-
+from byzpy.engine.node.decentralized import DecentralizedNode
 
 
 @pytest.mark.asyncio
@@ -102,7 +103,6 @@ async def test_p2p_half_step_pipeline_with_model():
     await node.shutdown()
 
 
-
 @pytest.mark.asyncio
 async def test_p2p_aggregation_pipeline_triggered_by_messages():
     """Verify aggregation pipeline is triggered when neighbor messages arrive."""
@@ -136,8 +136,7 @@ async def test_p2p_aggregation_pipeline_triggered_by_messages():
     ]
 
     result = await node.execute_pipeline(
-        HonestNodeApplication.AGGREGATION_PIPELINE,
-        {"gradients": gradients}
+        HonestNodeApplication.AGGREGATION_PIPELINE, {"gradients": gradients}
     )
 
     assert "aggregate" in result
@@ -193,12 +192,11 @@ async def test_p2p_aggregation_pipeline_with_message_source():
     await node.shutdown()
 
 
-
 @pytest.mark.asyncio
 async def test_p2p_broadcast_pipeline_sends_to_neighbors():
     """Verify broadcast pipeline sends updates to all neighbors."""
-    from byzpy.engine.peer_to_peer.topology import Topology
     from byzpy.engine.node.cluster import DecentralizedCluster
+    from byzpy.engine.peer_to_peer.topology import Topology
 
     topology = Topology.ring(3, k=1)
     cluster = DecentralizedCluster()
@@ -219,6 +217,7 @@ async def test_p2p_broadcast_pipeline_sends_to_neighbors():
                 node = nodes[nid]
                 await node.broadcast_message("gradient", {"vector": vector})
                 return vector
+
             return broadcast_op
 
         graph = make_single_operator_graph(
@@ -236,10 +235,13 @@ async def test_p2p_broadcast_pipeline_sends_to_neighbors():
         )
 
         if i > 0:
+
             def make_handler(nid):
                 async def handler(from_id, payload):
                     received_messages[nid].append(payload["vector"])
+
                 return handler
+
             node.register_message_handler("gradient", make_handler(f"node{i}"))
 
         nodes[f"node{i}"] = node
@@ -259,4 +261,3 @@ async def test_p2p_broadcast_pipeline_sends_to_neighbors():
 
     # Cleanup
     await cluster.shutdown_all()
-

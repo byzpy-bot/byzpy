@@ -10,20 +10,30 @@ from typing import Sequence
 
 import torch
 
-from byzpy import run_operator, OperatorExecutor
-from byzpy.pre_aggregators.clipping import Clipping
+from byzpy import OperatorExecutor, run_operator
 from byzpy.engine.graph.pool import ActorPoolConfig
+from byzpy.pre_aggregators.clipping import Clipping
 
 try:
-    from benchmarks.pytorch._worker_args import DEFAULT_WORKER_COUNTS, parse_worker_counts, coerce_worker_counts
+    from benchmarks.pytorch._worker_args import (
+        DEFAULT_WORKER_COUNTS,
+        coerce_worker_counts,
+        parse_worker_counts,
+    )
 except ImportError:
     try:
-        from ..pytorch._worker_args import DEFAULT_WORKER_COUNTS, parse_worker_counts, coerce_worker_counts
+        from ..pytorch._worker_args import (
+            DEFAULT_WORKER_COUNTS,
+            coerce_worker_counts,
+            parse_worker_counts,
+        )
     except ImportError:
         import sys
         from pathlib import Path
+
         sys.path.insert(0, str(Path(__file__).parent.parent / "pytorch"))
-        from _worker_args import DEFAULT_WORKER_COUNTS, parse_worker_counts, coerce_worker_counts  # type: ignore
+        from _worker_args import DEFAULT_WORKER_COUNTS  # type: ignore
+        from _worker_args import coerce_worker_counts, parse_worker_counts
 
 
 @dataclass(frozen=True)
@@ -37,7 +47,9 @@ class BenchmarkRun:
 
 
 def _parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Benchmark static clipping pre-aggregation using simplified API.")
+    parser = argparse.ArgumentParser(
+        description="Benchmark static clipping pre-aggregation using simplified API."
+    )
     parser.add_argument("--num-vectors", type=int, default=256, help="Number of vectors.")
     parser.add_argument("--dim", type=int, default=65536, help="Vector dimension.")
     parser.add_argument("--threshold", type=float, default=2.0, help="Clipping threshold.")
@@ -64,7 +76,9 @@ def _make_vectors(n: int, dim: int, seed: int) -> list[torch.Tensor]:
     return [torch.randn(dim, generator=gen) for _ in range(n)]
 
 
-def _time_direct(pre: Clipping, vecs: Sequence[torch.Tensor], *, iterations: int, warmup: int) -> float:
+def _time_direct(
+    pre: Clipping, vecs: Sequence[torch.Tensor], *, iterations: int, warmup: int
+) -> float:
     for _ in range(warmup):
         pre.pre_aggregate(vecs)
     start = time.perf_counter()
@@ -82,6 +96,7 @@ async def _time_run_operator(
     warmup: int,
 ) -> float:
     """Time run_operator() for single-threaded case (no pool overhead)."""
+
     async def _run_once():
         await run_operator(operator=operator, inputs={"vectors": vecs}, pool_config=pool_config)
 
@@ -109,7 +124,6 @@ async def _time_executor(
         for _ in range(warmup):
             await executor.run({"vectors": vecs})
 
-
         start = time.perf_counter()
         for _ in range(iterations):
             await executor.run({"vectors": vecs})
@@ -123,7 +137,6 @@ async def _benchmark(args: argparse.Namespace) -> list[BenchmarkRun]:
     pre = Clipping(threshold=args.threshold, chunk_size=args.chunk_size)
     direct_time = _time_direct(pre, vecs, iterations=args.repeat, warmup=args.warmup)
 
-
     single_time = await _time_run_operator(
         pre,
         vecs,
@@ -136,7 +149,6 @@ async def _benchmark(args: argparse.Namespace) -> list[BenchmarkRun]:
         BenchmarkRun("Direct pre-agg (PyTorch)", direct_time),
         BenchmarkRun("Single-thread (run_operator)", single_time),
     ]
-
 
     for workers in worker_counts:
         pool_config = ActorPoolConfig(backend=args.pool_backend, count=workers)

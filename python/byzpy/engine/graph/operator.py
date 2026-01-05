@@ -1,14 +1,14 @@
 from __future__ import annotations
 
-import inspect
-import dataclasses
 import asyncio
 import dataclasses
+import inspect
 from dataclasses import dataclass
 from typing import Any, Iterable, Mapping, Optional, Sequence
 
-from .subtask import SubTask
 from .pool import ActorPool
+from .subtask import SubTask
+
 
 @dataclass(frozen=True)
 class OpContext:
@@ -33,7 +33,9 @@ class Operator:
     def compute(self, inputs: Mapping[str, Any], *, context: OpContext) -> Any:
         raise NotImplementedError
 
-    def create_subtasks(self, inputs: Mapping[str, Any], *, context: OpContext) -> Iterable[SubTask]:
+    def create_subtasks(
+        self, inputs: Mapping[str, Any], *, context: OpContext
+    ) -> Iterable[SubTask]:
         return []
 
     def reduce_subtasks(
@@ -45,10 +47,14 @@ class Operator:
     ) -> Any:
         raise RuntimeError(f"Operator {self.name} does not implement reduce_subtasks().")
 
-    async def run_barriered_subtasks(self, inputs: Mapping[str, Any], *, context: OpContext, pool: ActorPool) -> Any:
+    async def run_barriered_subtasks(
+        self, inputs: Mapping[str, Any], *, context: OpContext, pool: ActorPool
+    ) -> Any:
         raise RuntimeError(f"Operator {self.name} does not implement barriered subtasks.")
 
-    async def run(self, inputs: Mapping[str, Any], *, context: OpContext, pool: ActorPool | None) -> Any:
+    async def run(
+        self, inputs: Mapping[str, Any], *, context: OpContext, pool: ActorPool | None
+    ) -> Any:
         can_barriered = self.supports_barriered_subtasks and pool is not None
         if can_barriered:
             return await _maybe_await(self.run_barriered_subtasks(inputs, context=context, pool=pool))  # type: ignore[arg-type]
@@ -83,7 +89,9 @@ async def _maybe_await(val: Any) -> Any:
     return val
 
 
-async def _run_subtasks_windowed(pool: ActorPool, subtasks: Iterable[SubTask], limit: int | None) -> list[Any]:
+async def _run_subtasks_windowed(
+    pool: ActorPool, subtasks: Iterable[SubTask], limit: int | None
+) -> list[Any]:
     iterator = iter(subtasks)
 
     if limit is None or limit == 0:
@@ -122,7 +130,9 @@ async def _run_subtasks_windowed(pool: ActorPool, subtasks: Iterable[SubTask], l
     return [results[i] for i in range(total)]
 
 
-def _assign_worker_affinities(subtasks: Iterable[SubTask], worker_affinities: Sequence[str]) -> Iterable[SubTask]:
+def _assign_worker_affinities(
+    subtasks: Iterable[SubTask], worker_affinities: Sequence[str]
+) -> Iterable[SubTask]:
     if not worker_affinities:
         return subtasks
 
@@ -147,7 +157,9 @@ class MessageTriggerOp(Operator):
         self.timeout = timeout
         self.name = f"message_trigger_{message_type}"
 
-    async def run(self, inputs: Mapping[str, Any], *, context: OpContext, pool: ActorPool | None) -> Any:
+    async def run(
+        self, inputs: Mapping[str, Any], *, context: OpContext, pool: ActorPool | None
+    ) -> Any:
         scheduler = context.metadata.get("scheduler")
         if scheduler is None:
             raise RuntimeError("MessageTriggerOp requires scheduler in context metadata")

@@ -11,20 +11,30 @@ from dataclasses import dataclass
 
 import torch
 
-from byzpy import run_operator, OperatorExecutor
+from byzpy import OperatorExecutor, run_operator
 from byzpy.attacks.sign_flip import SignFlipAttack
 from byzpy.engine.graph.pool import ActorPoolConfig
 
 try:
-    from benchmarks.pytorch._worker_args import DEFAULT_WORKER_COUNTS, coerce_worker_counts, parse_worker_counts
+    from benchmarks.pytorch._worker_args import (
+        DEFAULT_WORKER_COUNTS,
+        coerce_worker_counts,
+        parse_worker_counts,
+    )
 except ImportError:
     try:
-        from ..pytorch._worker_args import DEFAULT_WORKER_COUNTS, coerce_worker_counts, parse_worker_counts
+        from ..pytorch._worker_args import (
+            DEFAULT_WORKER_COUNTS,
+            coerce_worker_counts,
+            parse_worker_counts,
+        )
     except ImportError:
         import sys
         from pathlib import Path
+
         sys.path.insert(0, str(Path(__file__).parent.parent / "pytorch"))
-        from _worker_args import DEFAULT_WORKER_COUNTS, coerce_worker_counts, parse_worker_counts  # type: ignore
+        from _worker_args import DEFAULT_WORKER_COUNTS  # type: ignore
+        from _worker_args import coerce_worker_counts, parse_worker_counts
 
 
 @dataclass(frozen=True)
@@ -38,7 +48,9 @@ class BenchmarkRun:
 
 
 def _parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Benchmark the SignFlip attack using simplified API.")
+    parser = argparse.ArgumentParser(
+        description="Benchmark the SignFlip attack using simplified API."
+    )
     parser.add_argument("--grad-dim", type=int, default=262144, help="Gradient dimension.")
     parser.add_argument("--chunk-size", type=int, default=8192, help="Coordinates per subtask.")
     parser.add_argument("--scale", type=float, default=-1.0, help="Scaling factor.")
@@ -64,7 +76,9 @@ def _make_gradient(dim: int, seed: int) -> torch.Tensor:
     return torch.randn(dim, generator=gen)
 
 
-def _time_direct(attack: SignFlipAttack, grad: torch.Tensor, *, iterations: int, warmup: int) -> float:
+def _time_direct(
+    attack: SignFlipAttack, grad: torch.Tensor, *, iterations: int, warmup: int
+) -> float:
     for _ in range(warmup):
         attack.apply(base_grad=grad)
     start = time.perf_counter()
@@ -82,8 +96,14 @@ async def _time_run_operator(
     warmup: int,
 ) -> float:
     """Time run_operator() for single-threaded case (no pool overhead)."""
+
     async def _run_once():
-        await run_operator(operator=operator, inputs={"base_grad": grad}, pool_config=pool_config, input_keys=("base_grad",))
+        await run_operator(
+            operator=operator,
+            inputs={"base_grad": grad},
+            pool_config=pool_config,
+            input_keys=("base_grad",),
+        )
 
     for _ in range(warmup):
         await _run_once()
@@ -109,7 +129,6 @@ async def _time_executor(
         for _ in range(warmup):
             await executor.run({"base_grad": grad})
 
-
         start = time.perf_counter()
         for _ in range(iterations):
             await executor.run({"base_grad": grad})
@@ -123,7 +142,6 @@ async def _benchmark(args: argparse.Namespace) -> list[BenchmarkRun]:
 
     direct = _time_direct(attack, grad, iterations=args.repeat, warmup=args.warmup)
 
-
     single = await _time_run_operator(
         attack,
         grad,
@@ -136,7 +154,6 @@ async def _benchmark(args: argparse.Namespace) -> list[BenchmarkRun]:
         BenchmarkRun("Direct attack (PyTorch)", direct),
         BenchmarkRun("Single-thread (run_operator)", single),
     ]
-
 
     for workers in worker_counts:
         pool_config = ActorPoolConfig(backend=args.pool_backend, count=workers)

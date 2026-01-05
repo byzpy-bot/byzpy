@@ -1,15 +1,19 @@
 from __future__ import annotations
+
 import asyncio
 from typing import AsyncIterator, Iterable, List, Optional, Sequence
-import torch
-from ..node.actors import HonestNodeActor, ByzantineNodeActor
-from ...aggregators import Aggregator
-from ...pre_aggregators import PreAggregator
+
 import numpy as np
-from ...engine.storage.shared_store import SharedTensorHandle, register_tensor, cleanup_tensor
+import torch
+
+from ...aggregators import Aggregator
 from ...engine.graph.ops import make_single_operator_graph
-from ...engine.graph.scheduler import NodeScheduler
 from ...engine.graph.pool import ActorPool
+from ...engine.graph.scheduler import NodeScheduler
+from ...engine.storage.shared_store import SharedTensorHandle, cleanup_tensor, register_tensor
+from ...pre_aggregators import PreAggregator
+from ..node.actors import ByzantineNodeActor, HonestNodeActor
+
 
 class ParameterServer:
     """
@@ -55,6 +59,7 @@ class ParameterServer:
     ...     await ps.round()
     >>> await ps.shutdown()
     """
+
     def __init__(
         self,
         honest_nodes: List[HonestNodeActor],
@@ -86,7 +91,9 @@ class ParameterServer:
         for fut in asyncio.as_completed(coros):
             yield await fut
 
-    async def _stream_byz(self, honest_grads: Sequence[torch.Tensor]) -> AsyncIterator[torch.Tensor]:
+    async def _stream_byz(
+        self, honest_grads: Sequence[torch.Tensor]
+    ) -> AsyncIterator[torch.Tensor]:
         if not self.byz:
             return
         coros = [b.byzantine_gradient_for_next_batch(honest_grads) for b in self.byz]
@@ -130,11 +137,10 @@ class ParameterServer:
         finally:
             self._cleanup_shared_gradients(handles)
 
-        await asyncio.gather(*[
-            n.apply_server_gradient(g) for n in self.hon
-        ] + ([
-            n.apply_server_gradient(g) for n in self.byz
-        ] if self.update_byz else []))
+        await asyncio.gather(
+            *[n.apply_server_gradient(g) for n in self.hon]
+            + ([n.apply_server_gradient(g) for n in self.byz] if self.update_byz else [])
+        )
         return g
 
     async def shutdown(self):

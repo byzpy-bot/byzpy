@@ -61,7 +61,9 @@ def _make_grads(n: int, dim: int, seed: int) -> list[torch.Tensor]:
     return [torch.randn(dim, generator=gen) for _ in range(n)]
 
 
-def _time_direct(attack: MimicAttack, grads: Sequence[torch.Tensor], *, iterations: int, warmup: int) -> float:
+def _time_direct(
+    attack: MimicAttack, grads: Sequence[torch.Tensor], *, iterations: int, warmup: int
+) -> float:
     for _ in range(warmup):
         attack.apply(honest_grads=grads)
     start = time.perf_counter()

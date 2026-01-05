@@ -1,22 +1,23 @@
 from __future__ import annotations
+
 from typing import Any, Iterable, List, Mapping, Optional, Sequence, Tuple
 
+import numpy as np
 import torch
 import torch.nn as nn
-import numpy as np
 
-from byzpy.attacks.base import Attack
 from byzpy.aggregators._chunking import select_adaptive_chunk_size
+from byzpy.aggregators.coordinate_wise._tiling import flatten_gradients
+from byzpy.attacks.base import Attack
 from byzpy.configs.backend import get_backend
 from byzpy.engine.graph.operator import OpContext
 from byzpy.engine.graph.subtask import SubTask
 from byzpy.engine.storage.shared_store import (
     SharedTensorHandle,
-    register_tensor,
-    open_tensor,
     cleanup_tensor,
+    open_tensor,
+    register_tensor,
 )
-from byzpy.aggregators.coordinate_wise._tiling import flatten_gradients
 
 
 class EmpireAttack(Attack):
@@ -134,7 +135,9 @@ class EmpireAttack(Attack):
             try:
                 part_sum, part_count = item
             except Exception as exc:  # pragma: no cover
-                raise ValueError(f"EmpireAttack received malformed partial at index {idx}: {item!r}") from exc
+                raise ValueError(
+                    f"EmpireAttack received malformed partial at index {idx}: {item!r}"
+                ) from exc
             if part_count <= 0:
                 continue
             part_arr = np.asarray(part_sum, dtype=np.float64)

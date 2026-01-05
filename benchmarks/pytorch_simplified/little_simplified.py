@@ -12,20 +12,30 @@ from typing import Sequence
 
 import torch
 
-from byzpy import run_operator, OperatorExecutor
+from byzpy import OperatorExecutor, run_operator
 from byzpy.attacks.little import LittleAttack
 from byzpy.engine.graph.pool import ActorPoolConfig
 
 try:
-    from benchmarks.pytorch._worker_args import DEFAULT_WORKER_COUNTS, coerce_worker_counts, parse_worker_counts
+    from benchmarks.pytorch._worker_args import (
+        DEFAULT_WORKER_COUNTS,
+        coerce_worker_counts,
+        parse_worker_counts,
+    )
 except ImportError:
     try:
-        from ..pytorch._worker_args import DEFAULT_WORKER_COUNTS, coerce_worker_counts, parse_worker_counts
+        from ..pytorch._worker_args import (
+            DEFAULT_WORKER_COUNTS,
+            coerce_worker_counts,
+            parse_worker_counts,
+        )
     except ImportError:
         import sys
         from pathlib import Path
+
         sys.path.insert(0, str(Path(__file__).parent.parent / "pytorch"))
-        from _worker_args import DEFAULT_WORKER_COUNTS, coerce_worker_counts, parse_worker_counts  # type: ignore
+        from _worker_args import DEFAULT_WORKER_COUNTS  # type: ignore
+        from _worker_args import coerce_worker_counts, parse_worker_counts
 
 
 @dataclass(frozen=True)
@@ -67,7 +77,9 @@ def _make_grads(n: int, dim: int, seed: int) -> list[torch.Tensor]:
     return [torch.randn(dim, generator=gen) for _ in range(n)]
 
 
-def _time_direct(attack: LittleAttack, grads: Sequence[torch.Tensor], *, iterations: int, warmup: int) -> float:
+def _time_direct(
+    attack: LittleAttack, grads: Sequence[torch.Tensor], *, iterations: int, warmup: int
+) -> float:
     for _ in range(warmup):
         attack.apply(honest_grads=grads)
     start = time.perf_counter()
@@ -85,8 +97,14 @@ async def _time_run_operator(
     warmup: int,
 ) -> float:
     """Time run_operator() for single-threaded case (no pool overhead)."""
+
     async def _run_once():
-        await run_operator(operator=operator, inputs={"honest_grads": grads}, pool_config=pool_config, input_keys=("honest_grads",))
+        await run_operator(
+            operator=operator,
+            inputs={"honest_grads": grads},
+            pool_config=pool_config,
+            input_keys=("honest_grads",),
+        )
 
     for _ in range(warmup):
         await _run_once()
@@ -112,7 +130,6 @@ async def _time_executor(
         for _ in range(warmup):
             await executor.run({"honest_grads": grads})
 
-
         start = time.perf_counter()
         for _ in range(iterations):
             await executor.run({"honest_grads": grads})
@@ -126,7 +143,6 @@ async def _benchmark(args: argparse.Namespace) -> list[BenchmarkRun]:
 
     direct = _time_direct(attack, grads, iterations=args.repeat, warmup=args.warmup)
 
-
     single = await _time_run_operator(
         attack,
         grads,
@@ -139,7 +155,6 @@ async def _benchmark(args: argparse.Namespace) -> list[BenchmarkRun]:
         BenchmarkRun("Direct attack (PyTorch)", direct),
         BenchmarkRun("Single-thread (run_operator)", single),
     ]
-
 
     for workers in worker_counts:
         pool_config = ActorPoolConfig(backend=args.pool_backend, count=workers)

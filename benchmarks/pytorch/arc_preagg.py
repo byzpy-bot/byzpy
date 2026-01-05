@@ -10,15 +10,16 @@ from typing import Sequence
 
 import torch
 
-from byzpy.pre_aggregators.arc import ARC
 from byzpy.engine.graph.ops import make_single_operator_graph
 from byzpy.engine.graph.pool import ActorPool, ActorPoolConfig
 from byzpy.engine.graph.scheduler import NodeScheduler
+from byzpy.pre_aggregators.arc import ARC
 
 try:
-    from ._worker_args import DEFAULT_WORKER_COUNTS, parse_worker_counts, coerce_worker_counts
+    from ._worker_args import DEFAULT_WORKER_COUNTS, coerce_worker_counts, parse_worker_counts
 except ImportError:  # pragma: no cover - direct invocation
-    from _worker_args import DEFAULT_WORKER_COUNTS, parse_worker_counts, coerce_worker_counts  # type: ignore
+    from _worker_args import DEFAULT_WORKER_COUNTS  # type: ignore
+    from _worker_args import coerce_worker_counts, parse_worker_counts
 
 
 @dataclass(frozen=True)
@@ -32,10 +33,14 @@ class BenchmarkRun:
 
 
 def _parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Benchmark Adaptive Robust Clipping (ARC) pre-aggregation.")
+    parser = argparse.ArgumentParser(
+        description="Benchmark Adaptive Robust Clipping (ARC) pre-aggregation."
+    )
     parser.add_argument("--num-vectors", type=int, default=256, help="Number of vectors.")
     parser.add_argument("--dim", type=int, default=65536, help="Vector dimension.")
-    parser.add_argument("--f", type=int, default=8, help="Expected Byzantine count (controls clipping).")
+    parser.add_argument(
+        "--f", type=int, default=8, help="Expected Byzantine count (controls clipping)."
+    )
     parser.add_argument("--chunk-size", type=int, default=32, help="Vectors processed per subtask.")
     default_workers = ",".join(str(w) for w in DEFAULT_WORKER_COUNTS)
     parser.add_argument(

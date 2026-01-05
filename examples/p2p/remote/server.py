@@ -1,6 +1,6 @@
+import asyncio
 import os
 import sys
-import asyncio
 
 SCRIPT_DIR = os.path.dirname(__file__)
 PROJECT_ROOT = os.path.abspath(os.path.join(SCRIPT_DIR, os.pardir, os.pardir, os.pardir))

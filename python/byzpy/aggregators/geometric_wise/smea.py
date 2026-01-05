@@ -6,8 +6,6 @@ from typing import Any, Iterable, Sequence, Tuple
 
 import numpy as np
 
-from ..base import Aggregator
-from .._chunking import select_adaptive_chunk_size
 from ...configs.backend import get_backend
 from ...engine.graph.subtask import SubTask
 from ...engine.storage.shared_store import (
@@ -16,6 +14,8 @@ from ...engine.storage.shared_store import (
     open_tensor,
     register_tensor,
 )
+from .._chunking import select_adaptive_chunk_size
+from ..base import Aggregator
 
 try:  # optional torch import for dtype/device mirroring
     import torch
@@ -74,9 +74,7 @@ def _centered_max_eigval(gram_subset: np.ndarray) -> float:
     return float(max(vals[-1].real, 0.0) / m)
 
 
-def _best_subset(
-    flat: np.ndarray, gram: np.ndarray, n: int, m: int
-) -> tuple[float, np.ndarray]:
+def _best_subset(flat: np.ndarray, gram: np.ndarray, n: int, m: int) -> tuple[float, np.ndarray]:
     best_val: float | None = None
     best_mean: np.ndarray | None = None
     for combo in combinations(range(n), m):

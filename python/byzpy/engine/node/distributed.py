@@ -1,27 +1,19 @@
 from __future__ import annotations
 
-from typing import Mapping, Optional, Sequence
 import inspect
+from typing import Mapping, Optional, Sequence
 
+import numpy as np
 import torch
 
 from byzpy.aggregators.base import Aggregator
 from byzpy.attacks.base import Attack
+from byzpy.engine.graph.ops import CallableOp, RemoteCallableOp, make_single_operator_graph
 from byzpy.engine.graph.pool import ActorPool, ActorPoolConfig
-from byzpy.engine.storage.shared_store import SharedTensorHandle, register_tensor, cleanup_tensor
-import numpy as np
+from byzpy.engine.storage.shared_store import SharedTensorHandle, cleanup_tensor, register_tensor
 
-from .application import (
-    ByzantineNodeApplication,
-    HonestNodeApplication,
-    NodeApplication,
-)
+from .application import ByzantineNodeApplication, HonestNodeApplication, NodeApplication
 from .base import ByzantineNode, HonestNode
-from byzpy.engine.graph.ops import (
-    CallableOp,
-    RemoteCallableOp,
-    make_single_operator_graph,
-)
 
 
 class _DistributedNodeBase:
@@ -74,7 +66,12 @@ class DistributedHonestNode(_DistributedNodeBase, HonestNode):
         name: Optional[str] = None,
     ) -> None:
         self._aggregator = aggregator
-        super().__init__(app_cls=HonestNodeApplication, name=name, actor_pool=actor_pool, metadata=metadata)
+        super().__init__(
+            app_cls=HonestNodeApplication,
+            name=name,
+            actor_pool=actor_pool,
+            metadata=metadata,
+        )
         self._register_aggregation_pipeline()
         self._register_gradient_pipeline()
 
@@ -141,6 +138,7 @@ class DistributedByzantineNode(_DistributedNodeBase, ByzantineNode):
     _distributed_user_bz = None  # type: ignore[assignment]
 
     def __init_subclass__(cls, **kwargs):
+        """Initialize a subclass with distributed node configuration."""
         super().__init_subclass__(**kwargs)
         inherited_impl = getattr(cls, "_distributed_user_bz", None)
         user_impl = cls.__dict__.get("byzantine_gradient")
@@ -163,7 +161,12 @@ class DistributedByzantineNode(_DistributedNodeBase, ByzantineNode):
         name: Optional[str] = None,
     ) -> None:
         self.attack = attack
-        super().__init__(app_cls=ByzantineNodeApplication, name=name, actor_pool=actor_pool, metadata=metadata)
+        super().__init__(
+            app_cls=ByzantineNodeApplication,
+            name=name,
+            actor_pool=actor_pool,
+            metadata=metadata,
+        )
         self._custom_bz_callable = None
         self._custom_input_keys: tuple[str, ...] = ()
         self._custom_required_keys: tuple[str, ...] = ()
@@ -220,9 +223,13 @@ class DistributedByzantineNode(_DistributedNodeBase, ByzantineNode):
         self._app.register_pipeline(self._app.ATTACK_PIPELINE, graph)
 
     # Allow subclasses to customise default attack inputs
-    def prepare_attack_inputs(self, *, x=None, y=None, honest_grads=None, base_grad=None, model=None) -> Mapping[str, object]:
+    def prepare_attack_inputs(
+        self, *, x=None, y=None, honest_grads=None, base_grad=None, model=None
+    ) -> Mapping[str, object]:
         if self._custom_bz_callable is not None:
-            raise RuntimeError("prepare_attack_inputs should not be used when byzantine_gradient is overridden.")
+            raise RuntimeError(
+                "prepare_attack_inputs should not be used when byzantine_gradient is overridden."
+            )
         inputs = {}
         if getattr(self.attack, "uses_model_batch", False):
             if model is None:
@@ -285,7 +292,9 @@ class DistributedByzantineNode(_DistributedNodeBase, ByzantineNode):
         )
         return self._app.run_attack_sync(inputs=inputs)
 
-    async def byzantine_gradient_async(self, *, x=None, y=None, honest_grads=None, base_grad=None, model=None):
+    async def byzantine_gradient_async(
+        self, *, x=None, y=None, honest_grads=None, base_grad=None, model=None
+    ):
         if self._custom_bz_callable is not None:
             inputs = self._build_custom_inputs(
                 x=x,

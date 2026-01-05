@@ -30,7 +30,9 @@ def _parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Benchmark ByzFL's MDA implementation.")
     parser.add_argument("--num-grads", type=int, default=18, help="Number of gradients (n).")
     parser.add_argument("--grad-dim", type=int, default=2048, help="Gradient dimension.")
-    parser.add_argument("--f", type=int, default=6, help="Number of vectors to drop (MDA parameter).")
+    parser.add_argument(
+        "--f", type=int, default=6, help="Number of vectors to drop (MDA parameter)."
+    )
     parser.add_argument("--warmup", type=int, default=0, help="Warm-up iterations.")
     parser.add_argument("--repeat", type=int, default=2, help="Timed iterations.")
     parser.add_argument("--seed", type=int, default=0, help="Random seed for synthetic gradients.")

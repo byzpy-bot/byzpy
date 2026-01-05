@@ -1,7 +1,18 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Dict, Iterable, List, Mapping, MutableMapping, Optional, Sequence, Set, Union, TYPE_CHECKING
+from typing import (
+    TYPE_CHECKING,
+    Dict,
+    Iterable,
+    List,
+    Mapping,
+    MutableMapping,
+    Optional,
+    Sequence,
+    Set,
+    Union,
+)
 
 if TYPE_CHECKING:
     from .scheduler import MessageSource
@@ -14,16 +25,23 @@ class GraphInput:
     """
     Opaque reference representing data supplied by the application layer
     """
+
     name: str
 
     @classmethod
-    def from_message(cls, message_type: str, field: Optional[str] = None, timeout: Optional[float] = None):
+    def from_message(
+        cls,
+        message_type: str,
+        field: Optional[str] = None,
+        timeout: Optional[float] = None,
+    ):
         """
         Create a graph input that reads from a message.
 
         Returns a MessageSource object that can be used in graph node inputs.
         """
         from .scheduler import MessageSource
+
         return MessageSource(message_type=message_type, field=field, timeout=timeout)
 
 
@@ -76,7 +94,7 @@ class ComputationGraph:
             for dep in node.inputs.values():
                 if isinstance(dep, GraphInput):
                     req.add(dep.name)
-                elif hasattr(dep, 'message_type'):
+                elif hasattr(dep, "message_type"):
                     # MessageSource - not a required input (comes from messages)
                     pass
                 elif dep not in node_names:
@@ -89,7 +107,7 @@ class ComputationGraph:
             for dep in node.inputs.values():
                 if isinstance(dep, GraphInput):
                     continue
-                if hasattr(dep, 'message_type'):
+                if hasattr(dep, "message_type"):
                     # MessageSource - not a node dependency
                     continue
                 deps[node.name].add(dep)

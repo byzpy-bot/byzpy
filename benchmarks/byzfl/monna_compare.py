@@ -26,7 +26,9 @@ def _parse_args() -> argparse.Namespace:
     parser.add_argument("--num-grads", type=int, default=64, help="Number of gradients (n).")
     parser.add_argument("--grad-dim", type=int, default=65536, help="Gradient dimension.")
     parser.add_argument("--f", type=int, default=8, help="Number of gradients to drop.")
-    parser.add_argument("--reference-index", type=int, default=0, help="Trusted reference vector index.")
+    parser.add_argument(
+        "--reference-index", type=int, default=0, help="Trusted reference vector index."
+    )
     parser.add_argument("--warmup", type=int, default=0, help="Warm-up iterations.")
     parser.add_argument("--repeat", type=int, default=2, help="Timed iterations.")
     parser.add_argument("--seed", type=int, default=0, help="Random seed for gradients.")

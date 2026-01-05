@@ -24,7 +24,9 @@ class BenchmarkRun:
 
 
 def _parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Benchmark ByzFL's Inner Product Manipulation attack.")
+    parser = argparse.ArgumentParser(
+        description="Benchmark ByzFL's Inner Product Manipulation attack."
+    )
     parser.add_argument("--num-grads", type=int, default=64, help="Number of honest gradients.")
     parser.add_argument("--grad-dim", type=int, default=65536, help="Gradient dimension.")
     parser.add_argument("--tau", type=float, default=2.0, help="Attack scale factor (tau).")

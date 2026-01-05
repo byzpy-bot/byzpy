@@ -80,7 +80,11 @@ def _colors() -> dict[str, str]:
 
 
 def _label(key: str) -> str:
-    return key.replace("pool", "ActorPool x").replace("byzpy", "ByzPy direct").replace("byzfl", "ByzFL")
+    return (
+        key.replace("pool", "ActorPool x")
+        .replace("byzpy", "ByzPy direct")
+        .replace("byzfl", "ByzFL")
+    )
 
 
 def plot_all(df: pd.DataFrame, output: Optional[str]) -> None:
@@ -145,10 +149,20 @@ def plot_per_workload(df: pd.DataFrame, output_dir: Path) -> None:
         ax.set_ylim(0, ymax * 1.1)
 
         for bar, val in zip(bars, kept_vals):
-            ax.text(bar.get_x() + bar.get_width() / 2, val, f"{val:.1f}", ha="center", va="bottom", fontsize=8)
+            ax.text(
+                bar.get_x() + bar.get_width() / 2,
+                val,
+                f"{val:.1f}",
+                ha="center",
+                va="bottom",
+                fontsize=8,
+            )
 
         fig.tight_layout()
-        out_path = output_dir / f"{workload.lower().replace(' ', '_').replace('(', '').replace(')', '').replace('/', '_').replace('-', '_')}.png"
+        out_path = (
+            output_dir
+            / f"{workload.lower().replace(' ', '_').replace('(', '').replace(')', '').replace('/', '_').replace('-', '_')}.png"
+        )
         fig.savefig(out_path, dpi=200)
         plt.close(fig)
         print(f"Saved per-workload plot to {out_path}")
@@ -156,7 +170,12 @@ def plot_per_workload(df: pd.DataFrame, output_dir: Path) -> None:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Plot benchmark timings from README.md.")
-    parser.add_argument("--output", type=str, default="benchmarks_plot.png", help="Where to save the plot (png).")
+    parser.add_argument(
+        "--output",
+        type=str,
+        default="benchmarks_plot.png",
+        help="Where to save the plot (png).",
+    )
     parser.add_argument(
         "--per-workload-dir",
         type=str,

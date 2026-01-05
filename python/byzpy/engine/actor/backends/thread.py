@@ -1,11 +1,14 @@
 from __future__ import annotations
-import asyncio, concurrent.futures, uuid
+
+import asyncio
+import concurrent.futures
+import uuid
 from typing import Any, Dict, Optional
 
 from ..base import ActorBackend
 from ..channels import Endpoint
 from ..router import channel_router
-from ..transports import ucx, tcp
+from ..transports import tcp, ucx
 
 
 class ThreadActorBackend(ActorBackend):
@@ -26,7 +29,9 @@ class ThreadActorBackend(ActorBackend):
 
         def _build():
             target = cls_or_factory
-            return target(*args, **kwargs) if not isinstance(target, type) else target(*args, **kwargs)
+            return (
+                target(*args, **kwargs) if not isinstance(target, type) else target(*args, **kwargs)
+            )
 
         self._obj = await loop.run_in_executor(self._pool, _build)
 
@@ -56,7 +61,9 @@ class ThreadActorBackend(ActorBackend):
         q = self._queues.setdefault(name, asyncio.Queue())
         await q.put((from_ep, payload))
 
-    async def chan_put(self, *, from_ep: Endpoint, to_ep: Endpoint, name: str, payload: Any) -> None:
+    async def chan_put(
+        self, *, from_ep: Endpoint, to_ep: Endpoint, name: str, payload: Any
+    ) -> None:
         if to_ep.scheme == "thread":
             if to_ep.actor_id == self._actor_id:
                 await self._deliver_local(name, from_ep, payload)
@@ -87,12 +94,15 @@ class ThreadActorBackend(ActorBackend):
             host, port_str = to_ep.address.rsplit(":", 1)
 
             async def _op(e):
-                await ucx.send_control(e, {
-                    "op": "chan_put",
-                    "from": from_ep.__dict__,
-                    "to": to_ep.__dict__,
-                    "name": name,
-                })
+                await ucx.send_control(
+                    e,
+                    {
+                        "op": "chan_put",
+                        "from": from_ep.__dict__,
+                        "to": to_ep.__dict__,
+                        "name": name,
+                    },
+                )
                 tag, desc = ucx.pack_payload(payload)
                 await ucx.send_payload(e, tag, desc, payload)
                 rep = await ucx.recv_control(e)
@@ -132,7 +142,15 @@ class ThreadActorBackend(ActorBackend):
             host, port_str = ep.address.rsplit(":", 1)
 
             async def _op(e):
-                await ucx.send_control(e, {"op": "chan_get", "name": name, "timeout": timeout, "actor_id": ep.actor_id})
+                await ucx.send_control(
+                    e,
+                    {
+                        "op": "chan_get",
+                        "name": name,
+                        "timeout": timeout,
+                        "actor_id": ep.actor_id,
+                    },
+                )
                 rep = await ucx.recv_control(e)
                 if not rep.get("ok", False):
                     raise RuntimeError(rep)

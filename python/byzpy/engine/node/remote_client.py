@@ -1,9 +1,11 @@
 """Remote node client for network communication."""
+
 from __future__ import annotations
 
 import asyncio
-import cloudpickle
 from typing import Any, Dict, Optional
+
+import cloudpickle
 
 
 def serialize_message(msg: Dict[str, Any]) -> bytes:
@@ -72,8 +74,7 @@ class RemoteNodeClient:
 
         try:
             self._reader, self._writer = await asyncio.wait_for(
-                asyncio.open_connection(self.host, self.port),
-                timeout=timeout
+                asyncio.open_connection(self.host, self.port), timeout=timeout
             )
             self._connected = True
             self._running = True
@@ -133,7 +134,7 @@ class RemoteNodeClient:
         to_node_id: str,
         message_type: str,
         payload: Any,
-        from_node_id: Optional[str] = None
+        from_node_id: Optional[str] = None,
     ) -> None:
         """
         Send a message to a node on the remote server.
@@ -165,7 +166,7 @@ class RemoteNodeClient:
 
             serialized = serialize_message(msg)
             # Send length prefix
-            length = len(serialized).to_bytes(4, byteorder='big')
+            length = len(serialized).to_bytes(4, byteorder="big")
             self._writer.write(length + serialized)
             await self._writer.drain()
         except (BrokenPipeError, ConnectionResetError, OSError) as e:
@@ -213,7 +214,7 @@ class RemoteNodeClient:
 
         try:
             serialized = serialize_message(registration_msg)
-            length = len(serialized).to_bytes(4, byteorder='big')
+            length = len(serialized).to_bytes(4, byteorder="big")
             self._writer.write(length + serialized)
             await self._writer.drain()
         except Exception as e:
@@ -232,17 +233,11 @@ class RemoteNodeClient:
 
                 try:
                     # Read length prefix with shorter timeout for faster disconnection detection
-                    length_bytes = await asyncio.wait_for(
-                        self._reader.readexactly(4),
-                        timeout=0.05
-                    )
-                    length = int.from_bytes(length_bytes, byteorder='big')
+                    length_bytes = await asyncio.wait_for(self._reader.readexactly(4), timeout=0.05)
+                    length = int.from_bytes(length_bytes, byteorder="big")
 
                     # Read message
-                    data = await asyncio.wait_for(
-                        self._reader.readexactly(length),
-                        timeout=5.0
-                    )
+                    data = await asyncio.wait_for(self._reader.readexactly(length), timeout=5.0)
 
                     msg = deserialize_message(data)
                     await self._message_queue.put(msg)
@@ -250,7 +245,12 @@ class RemoteNodeClient:
                 except asyncio.TimeoutError:
                     # Continue loop to check if still running and connected
                     continue
-                except (asyncio.IncompleteReadError, ConnectionResetError, BrokenPipeError, OSError):
+                except (
+                    asyncio.IncompleteReadError,
+                    ConnectionResetError,
+                    BrokenPipeError,
+                    OSError,
+                ):
                     # Connection closed
                     self._connected = False
                     break
@@ -259,7 +259,10 @@ class RemoteNodeClient:
                     if self._running:
                         # Check if it's a connection error
                         error_str = str(e).lower()
-                        if any(keyword in error_str for keyword in ["closed", "broken", "reset", "connection"]):
+                        if any(
+                            keyword in error_str
+                            for keyword in ["closed", "broken", "reset", "connection"]
+                        ):
                             self._connected = False
                             break
                         # Log error but continue
@@ -273,4 +276,3 @@ class RemoteNodeClient:
 
 
 __all__ = ["RemoteNodeClient", "serialize_message", "deserialize_message"]
-

@@ -24,7 +24,9 @@ class CallableOp(Operator):
         kwargs: Dict[str, Any] = {}
         for param, source in self.input_mapping.items():
             if source not in inputs:
-                raise KeyError(f"CallableOp missing required input {source!r} for parameter {param!r}")
+                raise KeyError(
+                    f"CallableOp missing required input {source!r} for parameter {param!r}"
+                )
             kwargs[param] = inputs[source]
         return self.fn(**kwargs)
 

@@ -37,7 +37,13 @@ class NodeScheduler:
     >>> results = await scheduler.run({"gradients": gradients})
     """
 
-    def __init__(self, graph: ComputationGraph, *, pool: ActorPool | None = None, metadata: Optional[Mapping[str, Any]] = None) -> None:
+    def __init__(
+        self,
+        graph: ComputationGraph,
+        *,
+        pool: ActorPool | None = None,
+        metadata: Optional[Mapping[str, Any]] = None,
+    ) -> None:
         self.graph = graph
         self.pool = pool
         self.metadata = dict(metadata or {})
@@ -68,7 +74,9 @@ class NodeScheduler:
                 resolved[arg] = cache[dep.name]
             else:
                 if dep not in cache:
-                    raise KeyError(f"Graph node {node.name} depends on {dep!r}, which has not been computed.")
+                    raise KeyError(
+                        f"Graph node {node.name} depends on {dep!r}, which has not been computed."
+                    )
                 resolved[arg] = cache[dep]
         return resolved
 
@@ -76,7 +84,12 @@ class NodeScheduler:
 class MessageSource:
     """Represents a graph input that comes from a message."""
 
-    def __init__(self, message_type: str, field: Optional[str] = None, timeout: Optional[float] = None):
+    def __init__(
+        self,
+        message_type: str,
+        field: Optional[str] = None,
+        timeout: Optional[float] = None,
+    ):
         self.message_type = message_type
         self.field = field
         self.timeout = timeout
@@ -191,10 +204,14 @@ class MessageAwareNodeScheduler(NodeScheduler):
                 if value.field:
                     if isinstance(msg, dict):
                         if value.field not in msg:
-                            raise KeyError(f"Message field '{value.field}' not found in message payload")
+                            raise KeyError(
+                                f"Message field '{value.field}' not found in message payload"
+                            )
                         resolved_inputs[key] = msg[value.field]
                     else:
-                        raise TypeError(f"Cannot extract field '{value.field}' from non-dict message")
+                        raise TypeError(
+                            f"Cannot extract field '{value.field}' from non-dict message"
+                        )
                 else:
                     resolved_inputs[key] = msg
             else:
@@ -221,7 +238,9 @@ class MessageAwareNodeScheduler(NodeScheduler):
 
         return {name: cache[name] for name in self.graph.outputs}
 
-    async def _resolve_inputs(self, node: GraphNode, cache: MutableMapping[str, Any]) -> Dict[str, Any]:
+    async def _resolve_inputs(
+        self, node: GraphNode, cache: MutableMapping[str, Any]
+    ) -> Dict[str, Any]:
         """Override to handle MessageSource in node inputs."""
         resolved: Dict[str, Any] = {}
         for arg, dep in node.inputs.items():
@@ -231,7 +250,9 @@ class MessageAwareNodeScheduler(NodeScheduler):
                 if dep.field:
                     if isinstance(msg, dict):
                         if dep.field not in msg:
-                            raise KeyError(f"Message field '{dep.field}' not found in message payload")
+                            raise KeyError(
+                                f"Message field '{dep.field}' not found in message payload"
+                            )
                         resolved[arg] = msg[dep.field]
                     else:
                         raise TypeError(f"Cannot extract field '{dep.field}' from non-dict message")
@@ -241,7 +262,9 @@ class MessageAwareNodeScheduler(NodeScheduler):
                 resolved[arg] = cache[dep.name]
             else:
                 if dep not in cache:
-                    raise KeyError(f"Graph node {node.name} depends on {dep!r}, which has not been computed.")
+                    raise KeyError(
+                        f"Graph node {node.name} depends on {dep!r}, which has not been computed."
+                    )
                 resolved[arg] = cache[dep]
         return resolved
 

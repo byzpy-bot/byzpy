@@ -30,7 +30,9 @@ def _parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Benchmark ByzFL's ARC implementation.")
     parser.add_argument("--num-vectors", type=int, default=256, help="Number of vectors.")
     parser.add_argument("--dim", type=int, default=65536, help="Vector dimension.")
-    parser.add_argument("--f", type=int, default=8, help="Expected Byzantine count (controls clipping).")
+    parser.add_argument(
+        "--f", type=int, default=8, help="Expected Byzantine count (controls clipping)."
+    )
     parser.add_argument("--warmup", type=int, default=0, help="Warm-up iterations.")
     parser.add_argument("--repeat", type=int, default=2, help="Timed iterations.")
     parser.add_argument("--seed", type=int, default=0, help="Random seed for synthetic vectors.")

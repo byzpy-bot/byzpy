@@ -16,6 +16,7 @@ from byzpy.aggregators.norm_wise.center_clipping import CenteredClipping
 from byzpy.engine.graph.ops import make_single_operator_graph
 from byzpy.engine.graph.pool import ActorPool, ActorPoolConfig
 from byzpy.engine.graph.scheduler import NodeScheduler
+
 try:
     from ._worker_args import DEFAULT_WORKER_COUNTS, coerce_worker_counts, parse_worker_counts
 except ImportError:
@@ -33,12 +34,24 @@ class BenchmarkRun:
 
 
 def _parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Benchmark Centered Clipping with ActorPool vs PyTorch.")
+    parser = argparse.ArgumentParser(
+        description="Benchmark Centered Clipping with ActorPool vs PyTorch."
+    )
     parser.add_argument("--num-grads", type=int, default=64, help="Number of gradients (n).")
     parser.add_argument("--grad-dim", type=int, default=131072, help="Gradient dimension.")
     parser.add_argument("--c-tau", type=float, default=0.1, help="Clipping radius.")
-    parser.add_argument("--iters", type=int, default=10, help="Number of centered clipping iterations (M).")
-    parser.add_argument("--chunk-size", type=int, default=16, help="Number of gradients processed per subtask.")
+    parser.add_argument(
+        "--iters",
+        type=int,
+        default=10,
+        help="Number of centered clipping iterations (M).",
+    )
+    parser.add_argument(
+        "--chunk-size",
+        type=int,
+        default=16,
+        help="Number of gradients processed per subtask.",
+    )
     default_workers = ",".join(str(count) for count in DEFAULT_WORKER_COUNTS)
     parser.add_argument(
         "--pool-workers",
@@ -46,7 +59,12 @@ def _parse_args() -> argparse.Namespace:
         default=default_workers,
         help=f"Comma/space separated worker counts for ActorPool runs (default: {default_workers}).",
     )
-    parser.add_argument("--pool-backend", type=str, default="process", help="Actor backend (thread/process/...).")
+    parser.add_argument(
+        "--pool-backend",
+        type=str,
+        default="process",
+        help="Actor backend (thread/process/...).",
+    )
     parser.add_argument("--warmup", type=int, default=1, help="Warm-up iterations per mode.")
     parser.add_argument("--repeat", type=int, default=3, help="Timed iterations per mode.")
     parser.add_argument("--seed", type=int, default=0, help="Random seed for synthetic gradients.")
@@ -61,7 +79,13 @@ def _make_gradients(n: int, dim: int, seed: int, device: torch.device) -> list[t
     return [torch.randn(dim, generator=gen, device=device, dtype=torch.float32) for _ in range(n)]
 
 
-def _time_direct(aggregator: CenteredClipping, grads: Sequence[torch.Tensor], *, iterations: int, warmup: int) -> float:
+def _time_direct(
+    aggregator: CenteredClipping,
+    grads: Sequence[torch.Tensor],
+    *,
+    iterations: int,
+    warmup: int,
+) -> float:
     for _ in range(warmup):
         aggregator.aggregate(grads)
     start = time.perf_counter()

@@ -28,21 +28,23 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
+from examples.ps.nodes import DistributedPSByzNode, DistributedPSHonestNode, select_pool_backend
+
 from byzpy.aggregators.geometric_wise.krum import MultiKrum
 from byzpy.configs.actor import set_actor
-from byzpy.engine.node.actors import HonestNodeActor, ByzantineNodeActor
-from byzpy.engine.parameter_server.ps import ParameterServer
 from byzpy.engine.graph.pool import ActorPool, ActorPoolConfig
-from examples.ps.nodes import (
-    DistributedPSHonestNode,
-    DistributedPSByzNode,
-    select_pool_backend,
-)
+from byzpy.engine.node.actors import ByzantineNodeActor, HonestNodeActor
+from byzpy.engine.parameter_server.ps import ParameterServer
 
 try:
-    from benchmarks.pytorch._worker_args import DEFAULT_WORKER_COUNTS, coerce_worker_counts, parse_worker_counts
+    from benchmarks.pytorch._worker_args import (
+        DEFAULT_WORKER_COUNTS,
+        coerce_worker_counts,
+        parse_worker_counts,
+    )
 except ImportError:
-    from _worker_args import DEFAULT_WORKER_COUNTS, coerce_worker_counts, parse_worker_counts  # type: ignore
+    from _worker_args import DEFAULT_WORKER_COUNTS  # type: ignore
+    from _worker_args import coerce_worker_counts, parse_worker_counts
 
 
 @dataclass(frozen=True)
@@ -124,7 +126,9 @@ async def _train_byzpy(
     aggregator = MultiKrum(f=f, q=q, chunk_size=chunk_size)
     pool = None
     if pool_workers is not None and pool_workers > 1:
-        pool = ActorPool([ActorPoolConfig(backend=pool_backend, count=pool_workers, name="aggregator-pool")])
+        pool = ActorPool(
+            [ActorPoolConfig(backend=pool_backend, count=pool_workers, name="aggregator-pool")]
+        )
         await pool.start()
 
     ps = ParameterServer(
@@ -221,7 +225,12 @@ def _parse_args() -> argparse.Namespace:
     parser.add_argument("--batch-size", type=int, default=64, help="Batch size per node.")
     parser.add_argument("--lr", type=float, default=0.1, help="Learning rate.")
     parser.add_argument("--f", type=int, default=3, help="MultiKrum fault tolerance parameter.")
-    parser.add_argument("--q", type=int, default=None, help="MultiKrum parameter q (defaults to n - f - 1).")
+    parser.add_argument(
+        "--q",
+        type=int,
+        default=None,
+        help="MultiKrum parameter q (defaults to n - f - 1).",
+    )
     parser.add_argument("--chunk-size", type=int, default=32, help="MultiKrum chunk size.")
     default_workers = ",".join(str(count) for count in DEFAULT_WORKER_COUNTS)
     parser.add_argument(

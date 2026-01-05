@@ -1,6 +1,9 @@
 """Tests for Topology Integration - Categories 3-8 from Milestone 4 Test Plan."""
+
 import asyncio
+
 import pytest
+
 from byzpy.engine.graph.pool import ActorPoolConfig
 
 
@@ -8,6 +11,7 @@ from byzpy.engine.graph.pool import ActorPoolConfig
 def clear_process_context_registry():
     """Clear ProcessContext registry before and after each test."""
     from byzpy.engine.node.context import ProcessContext
+
     ProcessContext._registry.clear()
     yield
     ProcessContext._registry.clear()
@@ -16,6 +20,7 @@ def clear_process_context_registry():
 def make_app(name: str):
     """Create a simple NodeApplication for testing."""
     from byzpy.engine.node.application import NodeApplication
+
     return NodeApplication(
         name=name,
         actor_pool=[ActorPoolConfig(backend="thread", count=1)],
@@ -32,10 +37,10 @@ def make_app(name: str):
 @pytest.mark.asyncio
 async def test_decentralizednode_uses_messagerouter():
     """Verify DecentralizedNode uses MessageRouter for message routing."""
-    from byzpy.engine.peer_to_peer.topology import Topology
+    from byzpy.engine.node.context import InProcessContext
     from byzpy.engine.node.decentralized import DecentralizedNode
     from byzpy.engine.node.router import MessageRouter
-    from byzpy.engine.node.context import InProcessContext
+    from byzpy.engine.peer_to_peer.topology import Topology
 
     topology = Topology.ring(3, k=1)
 
@@ -56,9 +61,9 @@ async def test_decentralizednode_uses_messagerouter():
 @pytest.mark.asyncio
 async def test_decentralizednode_send_to_neighbor():
     """Verify send_message() works for valid neighbors."""
-    from byzpy.engine.peer_to_peer.topology import Topology
-    from byzpy.engine.node.decentralized import DecentralizedNode
     from byzpy.engine.node.context import InProcessContext
+    from byzpy.engine.node.decentralized import DecentralizedNode
+    from byzpy.engine.peer_to_peer.topology import Topology
 
     topology = Topology.ring(3, k=1)
 
@@ -92,9 +97,9 @@ async def test_decentralizednode_send_to_neighbor():
 @pytest.mark.asyncio
 async def test_decentralizednode_send_to_non_neighbor_raises():
     """Verify send_message() raises for non-neighbors."""
-    from byzpy.engine.peer_to_peer.topology import Topology
-    from byzpy.engine.node.decentralized import DecentralizedNode
     from byzpy.engine.node.context import InProcessContext
+    from byzpy.engine.node.decentralized import DecentralizedNode
+    from byzpy.engine.peer_to_peer.topology import Topology
 
     topology = Topology.ring(5, k=1)  # Node 0 can only send to 1 and 4
 
@@ -123,9 +128,9 @@ async def test_decentralizednode_send_to_non_neighbor_raises():
 @pytest.mark.asyncio
 async def test_decentralizednode_broadcast_message():
     """Verify broadcast_message() sends to all neighbors."""
-    from byzpy.engine.peer_to_peer.topology import Topology
-    from byzpy.engine.node.decentralized import DecentralizedNode
     from byzpy.engine.node.context import InProcessContext
+    from byzpy.engine.node.decentralized import DecentralizedNode
+    from byzpy.engine.peer_to_peer.topology import Topology
 
     topology = Topology.ring(4, k=1)
 
@@ -143,8 +148,10 @@ async def test_decentralizednode_broadcast_message():
     # Track received messages
     received_by = {i: [] for i in range(4)}
     for i, node in enumerate(nodes):
+
         async def handler(from_id, payload, idx=i):
             received_by[idx].append((from_id, payload))
+
         node.register_message_handler("broadcast_test", handler)
 
     # Node 0 broadcasts (neighbors are 1 and 3)
@@ -168,9 +175,9 @@ async def test_decentralizednode_broadcast_message():
 @pytest.mark.asyncio
 async def test_decentralizednode_multicast_message():
     """Verify multicast_message() sends to specified neighbors."""
-    from byzpy.engine.peer_to_peer.topology import Topology
-    from byzpy.engine.node.decentralized import DecentralizedNode
     from byzpy.engine.node.context import InProcessContext
+    from byzpy.engine.node.decentralized import DecentralizedNode
+    from byzpy.engine.peer_to_peer.topology import Topology
 
     topology = Topology.complete(4)  # Everyone is a neighbor
 
@@ -187,8 +194,10 @@ async def test_decentralizednode_multicast_message():
 
     received_by = {i: [] for i in range(4)}
     for i, node in enumerate(nodes):
+
         async def handler(from_id, payload, idx=i):
             received_by[idx].append(payload)
+
         node.register_message_handler("multicast_test", handler)
 
     # Node 0 multicasts to only nodes 1 and 2
@@ -214,9 +223,9 @@ async def test_decentralizednode_multicast_message():
 @pytest.mark.asyncio
 async def test_decentralizednode_get_out_neighbors():
     """Verify get_neighbors() returns node's outgoing neighbors."""
-    from byzpy.engine.peer_to_peer.topology import Topology
-    from byzpy.engine.node.decentralized import DecentralizedNode
     from byzpy.engine.node.context import InProcessContext
+    from byzpy.engine.node.decentralized import DecentralizedNode
+    from byzpy.engine.peer_to_peer.topology import Topology
 
     topology = Topology.ring(5, k=1)
 
@@ -239,9 +248,9 @@ async def test_decentralizednode_get_out_neighbors():
 @pytest.mark.asyncio
 async def test_decentralizednode_get_in_neighbors():
     """Verify get_in_neighbors() returns nodes that can send to this node."""
-    from byzpy.engine.peer_to_peer.topology import Topology
-    from byzpy.engine.node.decentralized import DecentralizedNode
     from byzpy.engine.node.context import InProcessContext
+    from byzpy.engine.node.decentralized import DecentralizedNode
+    from byzpy.engine.peer_to_peer.topology import Topology
 
     topology = Topology.ring(5, k=1)
 
@@ -271,8 +280,8 @@ async def test_decentralizednode_get_in_neighbors():
 @pytest.mark.asyncio
 async def test_decentralizedcluster_nodes_with_topology():
     """Verify cluster nodes can be created with topology."""
-    from byzpy.engine.peer_to_peer.topology import Topology
     from byzpy.engine.node.cluster import DecentralizedCluster
+    from byzpy.engine.peer_to_peer.topology import Topology
 
     topology = Topology.ring(3, k=1)
     cluster = DecentralizedCluster()
@@ -292,8 +301,8 @@ async def test_decentralizedcluster_nodes_with_topology():
 @pytest.mark.asyncio
 async def test_decentralizedcluster_enforces_topology():
     """Verify cluster nodes respect topology constraints."""
-    from byzpy.engine.peer_to_peer.topology import Topology
     from byzpy.engine.node.cluster import DecentralizedCluster
+    from byzpy.engine.peer_to_peer.topology import Topology
 
     topology = Topology.ring(5, k=1)
     cluster = DecentralizedCluster()
@@ -322,8 +331,8 @@ async def test_decentralizedcluster_enforces_topology():
 @pytest.mark.asyncio
 async def test_decentralizedcluster_node_sends_message():
     """Verify node in cluster can send messages to neighbors."""
-    from byzpy.engine.peer_to_peer.topology import Topology
     from byzpy.engine.node.cluster import DecentralizedCluster
+    from byzpy.engine.peer_to_peer.topology import Topology
 
     # Use string node_ids that map to topology indices
     topology = Topology.complete(3)
@@ -339,8 +348,10 @@ async def test_decentralizedcluster_node_sends_message():
 
     # Register handlers AFTER start_all (like M3 tests)
     for node_id, node in cluster.nodes.items():
+
         async def handler(from_id, payload, nid=node_id):
             received[nid].append((from_id, payload))
+
         node.register_message_handler("test_msg", handler)
 
     # Send from node0 to node1 via the node's send_message
@@ -358,8 +369,8 @@ async def test_decentralizedcluster_node_sends_message():
 @pytest.mark.asyncio
 async def test_decentralizedcluster_broadcast_from_node():
     """Verify node can broadcast to all neighbors."""
-    from byzpy.engine.peer_to_peer.topology import Topology
     from byzpy.engine.node.cluster import DecentralizedCluster
+    from byzpy.engine.peer_to_peer.topology import Topology
 
     # Use string node_ids for ProcessContext compatibility
     topology = Topology.ring(4, k=1)
@@ -375,8 +386,10 @@ async def test_decentralizedcluster_broadcast_from_node():
 
     # Register handlers AFTER start_all (like M3 tests)
     for node_id, node in cluster.nodes.items():
+
         async def handler(from_id, payload, nid=node_id):
             received_count[nid] += 1
+
         node.register_message_handler("broadcast", handler)
 
     # Node0 broadcasts (neighbors: node1, node3 in ring)
@@ -400,9 +413,9 @@ async def test_decentralizedcluster_broadcast_from_node():
 @pytest.mark.asyncio
 async def test_decentralizedcluster_topology_with_processes():
     """Verify topology works with process-based nodes."""
-    from byzpy.engine.peer_to_peer.topology import Topology
     from byzpy.engine.node.cluster import DecentralizedCluster
     from byzpy.engine.node.context import ProcessContext
+    from byzpy.engine.peer_to_peer.topology import Topology
 
     topology = Topology.ring(3, k=1)
     cluster = DecentralizedCluster()
@@ -426,8 +439,8 @@ async def test_decentralizedcluster_topology_with_processes():
 @pytest.mark.asyncio
 async def test_decentralizedcluster_cross_process_topology_enforcement():
     """Verify topology enforcement works across processes with message handlers."""
-    from byzpy.engine.peer_to_peer.topology import Topology
     from byzpy.engine.node.cluster import DecentralizedCluster
+    from byzpy.engine.peer_to_peer.topology import Topology
 
     # Use string node_ids for ProcessContext compatibility
     topology = Topology.ring(3, k=1)  # Node0 neighbors: node1, node2
@@ -443,8 +456,10 @@ async def test_decentralizedcluster_cross_process_topology_enforcement():
 
     # Register handlers AFTER start_all (like M3 tests)
     for node_id, node in cluster.nodes.items():
+
         async def handler(from_id, payload, nid=node_id):
             received[nid].append({"from": from_id, "data": payload})
+
         node.register_message_handler("gradient", handler)
 
     # Node0 sends to neighbor node1 (should succeed)
@@ -470,8 +485,8 @@ async def test_decentralizedcluster_cross_process_topology_enforcement():
 @pytest.mark.asyncio
 async def test_ring_topology_k1():
     """Verify ring topology with k=1 has correct neighbors."""
-    from byzpy.engine.peer_to_peer.topology import Topology
     from byzpy.engine.node.router import MessageRouter
+    from byzpy.engine.peer_to_peer.topology import Topology
 
     topology = Topology.ring(5, k=1)
 
@@ -488,8 +503,8 @@ async def test_ring_topology_k1():
 @pytest.mark.asyncio
 async def test_ring_topology_k2():
     """Verify ring topology with k=2 has 4 neighbors."""
-    from byzpy.engine.peer_to_peer.topology import Topology
     from byzpy.engine.node.router import MessageRouter
+    from byzpy.engine.peer_to_peer.topology import Topology
 
     topology = Topology.ring(6, k=2)
 
@@ -506,8 +521,8 @@ async def test_ring_topology_k2():
 @pytest.mark.asyncio
 async def test_complete_topology():
     """Verify complete topology allows all-to-all communication."""
-    from byzpy.engine.peer_to_peer.topology import Topology
     from byzpy.engine.node.router import MessageRouter
+    from byzpy.engine.peer_to_peer.topology import Topology
 
     n = 5
     topology = Topology.complete(n)
@@ -527,8 +542,8 @@ async def test_complete_topology():
 @pytest.mark.asyncio
 async def test_grid_topology():
     """Verify grid topology has correct neighbors."""
-    from byzpy.engine.peer_to_peer.topology import Topology
     from byzpy.engine.node.router import MessageRouter
+    from byzpy.engine.peer_to_peer.topology import Topology
 
     # Create 3x3 grid topology
     # Node layout:
@@ -574,8 +589,8 @@ async def test_grid_topology():
 
 def test_messagerouter_invalid_node_id():
     """Verify MessageRouter rejects invalid node_id."""
-    from byzpy.engine.peer_to_peer.topology import Topology
     from byzpy.engine.node.router import MessageRouter
+    from byzpy.engine.peer_to_peer.topology import Topology
 
     topology = Topology.ring(3, k=1)
 
@@ -587,8 +602,8 @@ def test_messagerouter_invalid_node_id():
 @pytest.mark.asyncio
 async def test_messagerouter_route_to_self_raises():
     """Verify routing to self raises error."""
-    from byzpy.engine.peer_to_peer.topology import Topology
     from byzpy.engine.node.router import MessageRouter
+    from byzpy.engine.peer_to_peer.topology import Topology
 
     topology = Topology.complete(3)
     router = MessageRouter(topology=topology, node_id=0)
@@ -604,8 +619,8 @@ async def test_messagerouter_route_to_self_raises():
 
 def test_messagerouter_empty_topology():
     """Verify MessageRouter handles single-node topology."""
-    from byzpy.engine.peer_to_peer.topology import Topology
     from byzpy.engine.node.router import MessageRouter
+    from byzpy.engine.peer_to_peer.topology import Topology
 
     # Single node = no edges
     topology = Topology(1, [])
@@ -619,8 +634,8 @@ def test_messagerouter_empty_topology():
 @pytest.mark.asyncio
 async def test_messagerouter_broadcast_no_neighbors():
     """Verify broadcast with no neighbors completes without error."""
-    from byzpy.engine.peer_to_peer.topology import Topology
     from byzpy.engine.node.router import MessageRouter
+    from byzpy.engine.peer_to_peer.topology import Topology
 
     topology = Topology(1, [])  # Single node
     router = MessageRouter(topology=topology, node_id=0)
@@ -639,11 +654,13 @@ async def test_messagerouter_broadcast_no_neighbors():
 
 
 @pytest.mark.asyncio
-@pytest.mark.skip(reason="Flaky test - message routing/timing issues, receives 0 messages instead of expected 2")
+@pytest.mark.skip(
+    reason="Flaky test - message routing/timing issues, receives 0 messages instead of expected 2"
+)
 async def test_topology_gradient_exchange_ring():
     """Verify gradient exchange follows ring topology constraints."""
-    from byzpy.engine.peer_to_peer.topology import Topology
     from byzpy.engine.node.cluster import DecentralizedCluster
+    from byzpy.engine.peer_to_peer.topology import Topology
 
     # Use string node_ids for ProcessContext compatibility
     topology = Topology.ring(4, k=1)
@@ -660,6 +677,7 @@ async def test_topology_gradient_exchange_ring():
         def make_handler(nid):
             async def on_gradient(from_id, payload):
                 gradients_received[nid].append(from_id)
+
             return on_gradient
 
         node.register_message_handler("gradient", make_handler(f"node{i}"))
@@ -692,9 +710,9 @@ async def test_topology_gradient_exchange_ring():
 @pytest.mark.asyncio
 async def test_topology_aggregation_from_in_neighbors():
     """Verify node correctly identifies in-neighbors for aggregation."""
-    from byzpy.engine.peer_to_peer.topology import Topology
-    from byzpy.engine.node.decentralized import DecentralizedNode
     from byzpy.engine.node.context import InProcessContext
+    from byzpy.engine.node.decentralized import DecentralizedNode
+    from byzpy.engine.peer_to_peer.topology import Topology
 
     topology = Topology.ring(4, k=1)
 
@@ -722,12 +740,15 @@ async def test_topology_aggregation_from_in_neighbors():
 
 
 @pytest.mark.asyncio
-@pytest.mark.skip(reason="Flaky test - ring topology message delivery timing issue, receives 1 message instead of expected 2")
+@pytest.mark.skip(
+    reason="Flaky test - ring topology message delivery timing issue, receives 1 message instead of expected 2"
+)
 async def test_topology_ring_p2p_training_round():
     """Verify complete P2P training round with ring topology and aggregation."""
     import torch
-    from byzpy.engine.peer_to_peer.topology import Topology
+
     from byzpy.engine.node.cluster import DecentralizedCluster
+    from byzpy.engine.peer_to_peer.topology import Topology
 
     # Use string node_ids for ProcessContext compatibility
     topology = Topology.ring(4, k=1)
@@ -744,9 +765,11 @@ async def test_topology_ring_p2p_training_round():
 
     # Register handlers AFTER start_all
     for node_id, node in cluster.nodes.items():
+
         async def on_gradient(from_id, payload, nid=node_id):
             grad = torch.tensor(payload["grad"])
             node_states[nid]["received"].append(grad)
+
         node.register_message_handler("gradient", on_gradient)
 
     # Phase 1: Each node computes local gradient
@@ -778,8 +801,8 @@ async def test_topology_ring_p2p_training_round():
 @pytest.mark.asyncio
 async def test_topology_complete_all_to_all():
     """Verify complete topology allows all-to-all communication."""
-    from byzpy.engine.peer_to_peer.topology import Topology
     from byzpy.engine.node.cluster import DecentralizedCluster
+    from byzpy.engine.peer_to_peer.topology import Topology
 
     # Use string node_ids for ProcessContext compatibility
     topology = Topology.complete(3)
@@ -795,8 +818,10 @@ async def test_topology_complete_all_to_all():
 
     # Register handlers AFTER start_all
     for node_id, node in cluster.nodes.items():
+
         async def on_msg(from_id, payload, nid=node_id):
             received[nid].add(from_id)
+
         node.register_message_handler("sync", on_msg)
 
     # Each node broadcasts to all others
@@ -820,12 +845,15 @@ async def test_topology_complete_all_to_all():
 
 
 @pytest.mark.asyncio
-@pytest.mark.skip(reason="Flaky test - message routing/timing issues, receives 1 message instead of expected 2")
+@pytest.mark.skip(
+    reason="Flaky test - message routing/timing issues, receives 1 message instead of expected 2"
+)
 async def test_ring_p2p_training_simulation():
     """End-to-end test: Ring topology P2P gradient exchange."""
     import torch
-    from byzpy.engine.peer_to_peer.topology import Topology
+
     from byzpy.engine.node.cluster import DecentralizedCluster
+    from byzpy.engine.peer_to_peer.topology import Topology
 
     # Use string node_ids for ProcessContext compatibility
     n_nodes = 4
@@ -848,6 +876,7 @@ async def test_ring_p2p_training_simulation():
         def make_handler(nid):
             async def on_gradient(from_id, payload):
                 node_states[nid]["gradients"].append(payload["gradient"])
+
             return on_gradient
 
         node.register_message_handler("gradient", make_handler(node_id))
@@ -873,8 +902,8 @@ async def test_ring_p2p_training_simulation():
 @pytest.mark.skip(reason="Can run as standalone test, but not as part of the test suite")
 async def test_complete_topology_consensus():
     """End-to-end test: Complete topology achieves consensus value."""
-    from byzpy.engine.peer_to_peer.topology import Topology
     from byzpy.engine.node.cluster import DecentralizedCluster
+    from byzpy.engine.peer_to_peer.topology import Topology
 
     # Use string node_ids for ProcessContext compatibility
     n_nodes = 3
@@ -894,6 +923,7 @@ async def test_complete_topology_consensus():
         def make_handler(nid):
             async def on_value(from_id, payload):
                 values_received[nid].append(payload["value"])
+
             return on_value
 
         node.register_message_handler("value", make_handler(f"node{i}"))
@@ -917,4 +947,3 @@ async def test_complete_topology_consensus():
         assert sorted(values_received[node_id]) == sorted(expected_values)
 
     await cluster.shutdown_all()
-

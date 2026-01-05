@@ -39,8 +39,15 @@ def _parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Benchmark SMEA with ActorPool vs single-thread.")
     parser.add_argument("--num-grads", type=int, default=12, help="Number of gradients (n).")
     parser.add_argument("--grad-dim", type=int, default=1024, help="Gradient dimension.")
-    parser.add_argument("--f", type=int, default=3, help="Number of vectors to drop (SMEA parameter).")
-    parser.add_argument("--chunk-size", type=int, default=128, help="Combinations evaluated per subtask.")
+    parser.add_argument(
+        "--f", type=int, default=3, help="Number of vectors to drop (SMEA parameter)."
+    )
+    parser.add_argument(
+        "--chunk-size",
+        type=int,
+        default=128,
+        help="Combinations evaluated per subtask.",
+    )
     default_workers = ",".join(str(count) for count in DEFAULT_WORKER_COUNTS)
     parser.add_argument(
         "--pool-workers",
@@ -48,7 +55,12 @@ def _parse_args() -> argparse.Namespace:
         default=default_workers,
         help=f"Comma/space separated worker counts for ActorPool runs (default: {default_workers}).",
     )
-    parser.add_argument("--pool-backend", type=str, default="process", help="Actor backend (thread/process/...).")
+    parser.add_argument(
+        "--pool-backend",
+        type=str,
+        default="process",
+        help="Actor backend (thread/process/...).",
+    )
     parser.add_argument("--warmup", type=int, default=1, help="Warm-up iterations per mode.")
     parser.add_argument("--repeat", type=int, default=3, help="Timed iterations per mode.")
     parser.add_argument("--seed", type=int, default=0, help="Random seed for synthetic gradients.")

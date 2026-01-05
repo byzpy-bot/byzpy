@@ -1,5 +1,5 @@
-import pytest
 import numpy as np
+import pytest
 import torch
 
 from byzpy.aggregators.coordinate_wise.mean_of_medians import MeanOfMedians
@@ -20,11 +20,11 @@ def test_meamed_torch_n3_f1():
 
 def test_meamed_torch_n5_f2():
     grads = [
-        torch.tensor([-10.0,   0.0]),
-        torch.tensor([  1.0, 100.0]),
-        torch.tensor([  2.0,   2.0]),
-        torch.tensor([  3.0,-100.0]),
-        torch.tensor([100.0,   1.0]),
+        torch.tensor([-10.0, 0.0]),
+        torch.tensor([1.0, 100.0]),
+        torch.tensor([2.0, 2.0]),
+        torch.tensor([3.0, -100.0]),
+        torch.tensor([100.0, 1.0]),
     ]
     agg = MeanOfMedians(f=2)
     out = agg.aggregate(grads)

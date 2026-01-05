@@ -16,6 +16,7 @@ from byzpy.aggregators.geometric_wise.krum import MultiKrum
 from byzpy.engine.graph.ops import make_single_operator_graph
 from byzpy.engine.graph.pool import ActorPool, ActorPoolConfig
 from byzpy.engine.graph.scheduler import NodeScheduler
+
 try:
     from ._worker_args import DEFAULT_WORKER_COUNTS, coerce_worker_counts, parse_worker_counts
 except ImportError:
@@ -38,7 +39,9 @@ def _parse_args() -> argparse.Namespace:
     parser.add_argument("--grad-dim", type=int, default=65536, help="Gradient dimension.")
     parser.add_argument("--f", type=int, default=8, help="Number of Byzantine gradients.")
     parser.add_argument("--q", type=int, default=8, help="Number of gradients to average.")
-    parser.add_argument("--chunk-size", type=int, default=16, help="Candidates processed per subtask.")
+    parser.add_argument(
+        "--chunk-size", type=int, default=16, help="Candidates processed per subtask."
+    )
     default_workers = ",".join(str(count) for count in DEFAULT_WORKER_COUNTS)
     parser.add_argument(
         "--pool-workers",
@@ -46,7 +49,12 @@ def _parse_args() -> argparse.Namespace:
         default=default_workers,
         help=f"Comma/space separated worker counts for ActorPool runs (default: {default_workers}).",
     )
-    parser.add_argument("--pool-backend", type=str, default="process", help="Actor backend (thread/process/...).")
+    parser.add_argument(
+        "--pool-backend",
+        type=str,
+        default="process",
+        help="Actor backend (thread/process/...).",
+    )
     parser.add_argument("--warmup", type=int, default=1, help="Warm-up iterations per mode.")
     parser.add_argument("--repeat", type=int, default=3, help="Timed iterations per mode.")
     parser.add_argument("--seed", type=int, default=0, help="Random seed for synthetic gradients.")
@@ -61,7 +69,13 @@ def _make_gradients(n: int, dim: int, seed: int, device: torch.device) -> list[t
     return [torch.randn(dim, generator=gen, device=device, dtype=torch.float32) for _ in range(n)]
 
 
-def _time_direct(aggregator: MultiKrum, grads: Sequence[torch.Tensor], *, iterations: int, warmup: int) -> float:
+def _time_direct(
+    aggregator: MultiKrum,
+    grads: Sequence[torch.Tensor],
+    *,
+    iterations: int,
+    warmup: int,
+) -> float:
     for _ in range(warmup):
         aggregator.aggregate(grads)
     start = time.perf_counter()

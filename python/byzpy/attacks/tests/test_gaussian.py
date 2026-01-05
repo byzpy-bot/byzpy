@@ -22,6 +22,8 @@ def test_gaussian_chunk_matches_direct():
     ctx = OpContext(node_name="gauss", metadata={"pool_size": 4})
     subtasks = list(chunked.create_subtasks(inputs, context=ctx))
     partials = [t.fn(*t.args, **t.kwargs) for t in subtasks]
-    reduced = chunked.reduce_subtasks(partials, inputs, context=OpContext(node_name="gauss", metadata={}))
+    reduced = chunked.reduce_subtasks(
+        partials, inputs, context=OpContext(node_name="gauss", metadata={})
+    )
 
     assert torch.allclose(direct, reduced, atol=1e-7)

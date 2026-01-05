@@ -1,7 +1,8 @@
 from __future__ import annotations
-import torch
+
 from typing import Any, Sequence
 
+import torch
 
 from .base import _Backend
 
@@ -12,8 +13,10 @@ class _TorchBackend(_Backend[torch.Tensor]):
     def asarray(self, x: torch.Tensor, like: torch.Tensor | None = None) -> Any:
         kwargs = {}
         if like is not None:
-            if hasattr(like, "dtype"):  kwargs["dtype"]  = like.dtype
-            if hasattr(like, "device"): kwargs["device"] = like.device
+            if hasattr(like, "dtype"):
+                kwargs["dtype"] = like.dtype
+            if hasattr(like, "device"):
+                kwargs["device"] = like.device
         return torch.as_tensor(x, **kwargs)
 
     def stack(self, xs: Sequence[torch.Tensor], axis: int = 0) -> torch.Tensor:
@@ -34,7 +37,9 @@ class _TorchBackend(_Backend[torch.Tensor]):
     def argsort(self, x: torch.Tensor, axis: int = 0) -> torch.Tensor:
         return torch.argsort(x, dim=axis)
 
-    def take_along_axis(self, a: torch.Tensor, indices: torch.Tensor, axis: int = 0) -> torch.Tensor:
+    def take_along_axis(
+        self, a: torch.Tensor, indices: torch.Tensor, axis: int = 0
+    ) -> torch.Tensor:
         if hasattr(torch, "take_along_dim"):
             return torch.take_along_dim(a, indices, dim=axis)
         return torch.gather(a, dim=axis, index=indices)

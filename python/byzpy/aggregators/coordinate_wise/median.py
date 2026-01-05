@@ -1,21 +1,24 @@
 from __future__ import annotations
+
 from typing import Any, Iterable, Sequence
+
 import numpy as np
 
-from ..base import Aggregator
-from .._chunking import select_adaptive_chunk_size
 from ...configs.backend import get_backend
 from ...engine.graph.subtask import SubTask
 from ...engine.storage.shared_store import (
     SharedTensorHandle,
-    register_tensor,
-    open_tensor,
     cleanup_tensor,
+    open_tensor,
+    register_tensor,
 )
+from .._chunking import select_adaptive_chunk_size
+from ..base import Aggregator
 from ._tiling import flatten_gradients
 
 try:  # optional torch dependency
     import torch
+
     _HAS_TORCH = True
 except Exception:  # pragma: no cover
     torch = None  # type: ignore
@@ -59,6 +62,7 @@ class CoordinateWiseMedian(Aggregator):
       dimension. With subtasks: O(n * d / workers).
     - Memory complexity: O(n * d) for stacking gradients.
     """
+
     name = "coordinate-wise-median"
     supports_subtasks = True
     max_subtasks_inflight = 0

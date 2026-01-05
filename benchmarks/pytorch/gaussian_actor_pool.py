@@ -62,7 +62,13 @@ def _make_grads(n: int, dim: int, seed: int) -> list[torch.Tensor]:
     return [torch.randn(dim, generator=gen) for _ in range(n)]
 
 
-def _time_direct(attack: GaussianAttack, grads: Sequence[torch.Tensor], *, iterations: int, warmup: int) -> float:
+def _time_direct(
+    attack: GaussianAttack,
+    grads: Sequence[torch.Tensor],
+    *,
+    iterations: int,
+    warmup: int,
+) -> float:
     for _ in range(warmup):
         attack.apply(honest_grads=grads)
     start = time.perf_counter()
@@ -93,13 +99,17 @@ async def _time_scheduler(
 async def _benchmark(args: argparse.Namespace) -> list[BenchmarkRun]:
     worker_counts = coerce_worker_counts(getattr(args, "pool_workers", DEFAULT_WORKER_COUNTS))
     grads = _make_grads(args.num_grads, args.grad_dim, args.seed)
-    attack = GaussianAttack(mu=args.mu, sigma=args.sigma, seed=args.seed, chunk_size=args.chunk_size)
+    attack = GaussianAttack(
+        mu=args.mu, sigma=args.sigma, seed=args.seed, chunk_size=args.chunk_size
+    )
 
     direct = _time_direct(attack, grads, iterations=args.repeat, warmup=args.warmup)
 
     graph = make_single_operator_graph(
         node_name="gaussian",
-        operator=GaussianAttack(mu=args.mu, sigma=args.sigma, seed=args.seed, chunk_size=args.chunk_size),
+        operator=GaussianAttack(
+            mu=args.mu, sigma=args.sigma, seed=args.seed, chunk_size=args.chunk_size
+        ),
         input_keys=("honest_grads",),
     )
 

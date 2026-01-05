@@ -4,12 +4,13 @@ Simplified operator execution API.
 Provides OperatorExecutor and run_operator for easy operator execution without
 manual graph creation.
 """
+
 from __future__ import annotations
 
 from typing import Any, Iterable, Mapping, Sequence
 
+from .operator import Operator
 from .ops import make_single_operator_graph
-from .operator import Operator, OpContext
 from .pool import ActorPool, ActorPoolConfig
 from .scheduler import NodeScheduler
 
@@ -107,7 +108,7 @@ class OperatorExecutor:
         # Pre-compute whether input mapping is needed (to avoid overhead in run())
         self._needs_input_mapping = False
         self._operator_input_key = None
-        if hasattr(operator, 'input_key') and len(self.input_keys) == 1:
+        if hasattr(operator, "input_key") and len(self.input_keys) == 1:
             self._operator_input_key = operator.input_key
             if self.input_keys[0] != operator.input_key:
                 self._needs_input_mapping = True
@@ -173,7 +174,12 @@ class OperatorExecutor:
         # When pool is configured, reuse scheduler across calls (like manual boilerplate in pool test)
         should_cache = self.pool_config is not None
 
-        if should_cache and self._graph is not None and self._scheduler is not None and self._scheduler.pool == self._pool:
+        if (
+            should_cache
+            and self._graph is not None
+            and self._scheduler is not None
+            and self._scheduler.pool == self._pool
+        ):
             # Use cached scheduler
             scheduler = self._scheduler
         else:
@@ -184,7 +190,7 @@ class OperatorExecutor:
             if self._needs_input_mapping:
                 # Create a wrapper operator that maps custom keys to operator's expected keys
                 # We need to use a proper Operator subclass, not CallableOp, to preserve context
-                from .operator import Operator, OpContext
+                from .operator import OpContext, Operator
 
                 class _InputMappingOperator(Operator):
                     """Wrapper operator that maps input keys."""
@@ -205,19 +211,27 @@ class OperatorExecutor:
                         mapped_inputs = {self.op_key: inputs[self.custom_key]}
                         return self.wrapped_op.compute(mapped_inputs, context=context)
 
-                    def create_subtasks(self, inputs: Mapping[str, Any], *, context: OpContext) -> Iterable[Any]:
+                    def create_subtasks(
+                        self, inputs: Mapping[str, Any], *, context: OpContext
+                    ) -> Iterable[Any]:
                         mapped_inputs = {self.op_key: inputs[self.custom_key]}
                         return self.wrapped_op.create_subtasks(mapped_inputs, context=context)
 
-                    def reduce_subtasks(self, partials: Sequence[Any], inputs: Mapping[str, Any], *, context: OpContext) -> Any:
+                    def reduce_subtasks(
+                        self,
+                        partials: Sequence[Any],
+                        inputs: Mapping[str, Any],
+                        *,
+                        context: OpContext,
+                    ) -> Any:
                         mapped_inputs = {self.op_key: inputs[self.custom_key]}
-                        return self.wrapped_op.reduce_subtasks(partials, mapped_inputs, context=context)
+                        return self.wrapped_op.reduce_subtasks(
+                            partials, mapped_inputs, context=context
+                        )
 
                 # Create wrapper operator
                 wrapper_op = _InputMappingOperator(
-                    self.operator,
-                    self.input_keys[0],
-                    self._operator_input_key
+                    self.operator, self.input_keys[0], self._operator_input_key
                 )
 
                 # Create graph with wrapper
@@ -271,9 +285,10 @@ async def run_operator(
     Returns:
         The result of operator execution.
     """
-    async with OperatorExecutor(operator, pool_config=pool_config, input_keys=input_keys) as executor:
+    async with OperatorExecutor(
+        operator, pool_config=pool_config, input_keys=input_keys
+    ) as executor:
         return await executor.run(inputs)
 
 
 __all__ = ["OperatorExecutor", "run_operator"]
-

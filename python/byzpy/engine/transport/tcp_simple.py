@@ -1,4 +1,5 @@
 from __future__ import annotations
+
 """Very simple TCP transport for message passing (loopback-friendly).
 
 This is a minimal, length-prefixed, pickle-based transport intended for tests

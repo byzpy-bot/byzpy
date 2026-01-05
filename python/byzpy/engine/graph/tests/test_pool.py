@@ -99,6 +99,7 @@ def _have_cuda() -> bool:
 def _have_cupy() -> bool:
     try:
         import cupy as _  # type: ignore
+
         return True
     except Exception:
         return False
@@ -138,10 +139,20 @@ async def _wait_until_listening_ucx(host: str, port: int, timeout: float = 5.0) 
     last_err = None
     while True:
         try:
+
             async def _probe(ep):
-                await ucx_transport.send_control(ep, {"op": "chan_get", "name": "__probe__", "timeout": 0.0, "actor_id": "__probe__"})
+                await ucx_transport.send_control(
+                    ep,
+                    {
+                        "op": "chan_get",
+                        "name": "__probe__",
+                        "timeout": 0.0,
+                        "actor_id": "__probe__",
+                    },
+                )
                 with contextlib.suppress(Exception):
                     await ucx_transport.recv_control(ep)
+
             await ucx_transport.call(host, int(port), _probe)
             return
         except Exception as err:
@@ -463,8 +474,24 @@ async def test_actor_pools_can_exchange_messages_via_channels():
 @pytest.mark.parametrize("kind_a,kind_b", _POOL_CPU_MATRIX)
 async def test_actor_pools_cross_backend_matrix_cpu(kind_a, kind_b, tcp_server_addr):
     channel_name = f"pool_cpu_{kind_a}_{kind_b}_{asyncio.get_running_loop().time()}"
-    pool_a = ActorPool([ActorPoolConfig(backend=_pool_backend_spec(kind_a, tcp_addr=tcp_server_addr), count=1, name=f"A-{kind_a}")])
-    pool_b = ActorPool([ActorPoolConfig(backend=_pool_backend_spec(kind_b, tcp_addr=tcp_server_addr), count=1, name=f"B-{kind_b}")])
+    pool_a = ActorPool(
+        [
+            ActorPoolConfig(
+                backend=_pool_backend_spec(kind_a, tcp_addr=tcp_server_addr),
+                count=1,
+                name=f"A-{kind_a}",
+            )
+        ]
+    )
+    pool_b = ActorPool(
+        [
+            ActorPoolConfig(
+                backend=_pool_backend_spec(kind_b, tcp_addr=tcp_server_addr),
+                count=1,
+                name=f"B-{kind_b}",
+            )
+        ]
+    )
 
     try:
         chan_a = await pool_a.open_channel(channel_name)
@@ -503,8 +530,24 @@ async def test_actor_pools_cross_backend_matrix_gpu(kind_a, kind_b, tcp_server_a
         pytest.skip("CUDA not available")
 
     channel_name = f"pool_gpu_{kind_a}_{kind_b}_{asyncio.get_running_loop().time()}"
-    pool_a = ActorPool([ActorPoolConfig(backend=_pool_backend_spec(kind_a, tcp_addr=tcp_server_addr), count=1, name=f"A-{kind_a}")])
-    pool_b = ActorPool([ActorPoolConfig(backend=_pool_backend_spec(kind_b, tcp_addr=tcp_server_addr), count=1, name=f"B-{kind_b}")])
+    pool_a = ActorPool(
+        [
+            ActorPoolConfig(
+                backend=_pool_backend_spec(kind_a, tcp_addr=tcp_server_addr),
+                count=1,
+                name=f"A-{kind_a}",
+            )
+        ]
+    )
+    pool_b = ActorPool(
+        [
+            ActorPoolConfig(
+                backend=_pool_backend_spec(kind_b, tcp_addr=tcp_server_addr),
+                count=1,
+                name=f"B-{kind_b}",
+            )
+        ]
+    )
 
     try:
         chan_a = await pool_a.open_channel(channel_name)
@@ -539,10 +582,32 @@ async def test_actor_pools_cross_backend_matrix_gpu(kind_a, kind_b, tcp_server_a
 @pytest.mark.real_actor_backends
 @pytest.mark.parametrize("kind_a,kind_b", _POOL_UCX_MATRIX)
 @pytest.mark.skipif(not UCX_GPU_OK, reason="UCX/CUDA/CuPy not available")
-async def test_actor_pools_cross_backend_matrix_ucx(kind_a, kind_b, tcp_server_addr, ucx_server_addr):
+async def test_actor_pools_cross_backend_matrix_ucx(
+    kind_a, kind_b, tcp_server_addr, ucx_server_addr
+):
     channel_name = f"pool_ucx_{kind_a}_{kind_b}_{asyncio.get_running_loop().time()}"
-    pool_a = ActorPool([ActorPoolConfig(backend=_pool_backend_spec(kind_a, tcp_addr=tcp_server_addr, ucx_addr=ucx_server_addr), count=1, name=f"A-{kind_a}")])
-    pool_b = ActorPool([ActorPoolConfig(backend=_pool_backend_spec(kind_b, tcp_addr=tcp_server_addr, ucx_addr=ucx_server_addr), count=1, name=f"B-{kind_b}")])
+    pool_a = ActorPool(
+        [
+            ActorPoolConfig(
+                backend=_pool_backend_spec(
+                    kind_a, tcp_addr=tcp_server_addr, ucx_addr=ucx_server_addr
+                ),
+                count=1,
+                name=f"A-{kind_a}",
+            )
+        ]
+    )
+    pool_b = ActorPool(
+        [
+            ActorPoolConfig(
+                backend=_pool_backend_spec(
+                    kind_b, tcp_addr=tcp_server_addr, ucx_addr=ucx_server_addr
+                ),
+                count=1,
+                name=f"B-{kind_b}",
+            )
+        ]
+    )
 
     try:
         chan_a = await pool_a.open_channel(channel_name)

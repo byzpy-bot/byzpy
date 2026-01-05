@@ -1,14 +1,25 @@
 from __future__ import annotations
 
 import asyncio
-from dataclasses import dataclass
 from collections import OrderedDict, defaultdict, deque
-from typing import Any, Callable, Deque, Dict, List, Mapping, MutableSequence, Optional, Sequence, Union
+from dataclasses import dataclass
+from typing import (
+    Any,
+    Callable,
+    Deque,
+    Dict,
+    List,
+    Mapping,
+    MutableSequence,
+    Optional,
+    Sequence,
+    Union,
+)
 
 import cloudpickle
 
-from ..actor.base import ActorBackend, ActorRef
 from ..actor.backends.gpu import GPUActorBackend, UCXRemoteActorBackend
+from ..actor.base import ActorBackend, ActorRef
 from ..actor.channels import ChannelRef, Endpoint
 from ..actor.factory import resolve_backend
 from .subtask import SubTask
@@ -49,13 +60,18 @@ class ActorPoolConfig:
     >>> pool = ActorPool([config])
     >>> await pool.start()
     """
+
     backend: Union[str, ActorBackend]
     count: int = 1
     capabilities: Sequence[str] | None = None
     name: Optional[str] = None
 
     def resolved_capabilities(self) -> Sequence[str]:
-        return self.capabilities if self.capabilities is not None else _infer_capabilities(self.backend)
+        return (
+            self.capabilities
+            if self.capabilities is not None
+            else _infer_capabilities(self.backend)
+        )
 
 
 class ActorPool:
@@ -261,6 +277,7 @@ class _PoolWorker:
     """
     A single actor worker in a pool
     """
+
     def __init__(self, *, backend: ActorBackend, capabilities: set[str], name: str) -> None:
         self.backend = backend
         self.capabilities = frozenset(capabilities)

@@ -1,4 +1,5 @@
 from __future__ import annotations
+
 import asyncio
 import contextlib
 import math
@@ -10,19 +11,16 @@ import pytest
 import pytest_asyncio
 import torch
 
-from byzpy.engine.actor.base import ActorRef
-from byzpy.engine.actor.channels import open_channel
-from byzpy.engine.actor.backends.thread import ThreadActorBackend
-from byzpy.engine.actor.backends.process import ProcessActorBackend
-from byzpy.engine.actor.backends.remote import (
-    RemoteActorBackend,
-    start_actor_server,
-)
 from byzpy.engine.actor.backends.gpu import (
     GPUActorBackend,
     UCXRemoteActorBackend,
     start_ucx_actor_server,
 )
+from byzpy.engine.actor.backends.process import ProcessActorBackend
+from byzpy.engine.actor.backends.remote import RemoteActorBackend, start_actor_server
+from byzpy.engine.actor.backends.thread import ThreadActorBackend
+from byzpy.engine.actor.base import ActorRef
+from byzpy.engine.actor.channels import open_channel
 from byzpy.engine.actor.transports.ucx import _ucx_mod
 
 
@@ -32,12 +30,15 @@ def _have_cuda() -> bool:
     except Exception:
         return False
 
+
 def _have_cupy() -> bool:
     try:
         import cupy as _
+
         return True
     except Exception:
         return False
+
 
 def _have_ucx() -> bool:
     return _ucx_mod() is not None
@@ -272,13 +273,15 @@ _GPU_MATRIX = [
     ("gpu", "gpu"),
 ]
 
+
 @pytest.mark.asyncio
 @pytest.mark.parametrize("kindA,kindB", _GPU_MATRIX)
 async def test_gpu_cross_backend_matrix_cpu(kindA, kindB, tcp_server_addr, ucx_server_addr=None):
     A = await _make_backend(kindA, tcp_server_addr, ucx_server_addr)
     B = await _make_backend(kindB, tcp_server_addr, ucx_server_addr)
 
-    await A.start(); await B.start()
+    await A.start()
+    await B.start()
     await A.construct(Worker, args=(), kwargs={})
     await B.construct(Worker, args=(), kwargs={})
     try:
@@ -294,7 +297,8 @@ async def test_gpu_cross_backend_matrix_cpu(kindA, kindB, tcp_server_addr, ucx_s
         assert isinstance(got, torch.Tensor)
         assert torch.equal(got, torch.arange(7, dtype=torch.float32))
     finally:
-        await A.close(); await B.close()
+        await A.close()
+        await B.close()
 
 
 _UCX_MATRIX = [
@@ -302,6 +306,7 @@ _UCX_MATRIX = [
     ("ucx", "gpu"),
     ("ucx", "ucx"),
 ]
+
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("kindA,kindB", _UCX_MATRIX)
@@ -313,7 +318,8 @@ async def test_gpu_ucx_cross_backend_cuda(kindA, kindB, tcp_server_addr, ucx_ser
     A = await _make_backend(kindA, tcp_server_addr, ucx_server_addr)
     B = await _make_backend(kindB, tcp_server_addr, ucx_server_addr)
 
-    await A.start(); await B.start()
+    await A.start()
+    await B.start()
     await A.construct(Worker, args=(), kwargs={})
     await B.construct(Worker, args=(), kwargs={})
 
@@ -331,7 +337,8 @@ async def test_gpu_ucx_cross_backend_cuda(kindA, kindB, tcp_server_addr, ucx_ser
         assert isinstance(got, torch.Tensor)
         assert torch.equal(got.to("cpu"), torch.arange(9, dtype=torch.float32))
     finally:
-        await A.close(); await B.close()
+        await A.close()
+        await B.close()
 
 
 @pytest.mark.asyncio
@@ -365,7 +372,8 @@ async def test_gpu_actorref_ucx_roundtrip(ucx_server_addr, tcp_server_addr):
     refB = ActorRef(ub)
 
     async with refA, refB:
-        await refA._backend.start(); await refB._backend.start()
+        await refA._backend.start()
+        await refB._backend.start()
         await refA._backend.construct(Worker, args=(), kwargs={})
         await refB._backend.construct(Worker, args=(), kwargs={})
 

@@ -44,16 +44,17 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
-from byzpy.aggregators.geometric_wise.krum import MultiKrum
-from byzpy.configs.actor import set_actor
-from byzpy.engine.node.actors import HonestNodeActor, ByzantineNodeActor
-from byzpy.engine.parameter_server.ps import ParameterServer
 from examples.ps.nodes import (
-    DistributedPSHonestNode,
     DistributedPSByzNode,
+    DistributedPSHonestNode,
     SmallCNN,
     select_pool_backend,
 )
+
+from byzpy.aggregators.geometric_wise.krum import MultiKrum
+from byzpy.configs.actor import set_actor
+from byzpy.engine.node.actors import ByzantineNodeActor, HonestNodeActor
+from byzpy.engine.parameter_server.ps import ParameterServer
 
 
 def shard_indices(n_items: int, n_shards: int) -> List[List[int]]:
@@ -102,7 +103,12 @@ async def main() -> None:
     parser.add_argument("--batch-size", type=int, default=64, help="Batch size per node.")
     parser.add_argument("--lr", type=float, default=0.05, help="Learning rate.")
     parser.add_argument("--f", type=int, default=1, help="MultiKrum fault tolerance parameter.")
-    parser.add_argument("--q", type=int, default=None, help="MultiKrum parameter q (defaults to n - f - 1).")
+    parser.add_argument(
+        "--q",
+        type=int,
+        default=None,
+        help="MultiKrum parameter q (defaults to n - f - 1).",
+    )
     parser.add_argument("--chunk-size", type=int, default=32, help="MultiKrum chunk size.")
     parser.add_argument("--seed", type=int, default=42, help="Random seed.")
     parser.add_argument("--data-root", type=str, default="./data", help="MNIST data directory.")

@@ -30,7 +30,11 @@ def test_graph_topological_order_and_required_inputs():
 
     graph = ComputationGraph([evaluate, preprocess, train])
 
-    assert [node.name for node in graph.nodes_in_order()] == ["preprocess", "train", "evaluate"]
+    assert [node.name for node in graph.nodes_in_order()] == [
+        "preprocess",
+        "train",
+        "evaluate",
+    ]
     assert graph.outputs == ["evaluate"]
     assert graph.required_inputs == frozenset({"dataset"})
 

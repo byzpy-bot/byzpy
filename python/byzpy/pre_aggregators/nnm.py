@@ -1,20 +1,21 @@
 from __future__ import annotations
-from typing import Any, Sequence, List, Iterable
+
+from typing import Any, Iterable, List, Sequence
 
 import numpy as np
 import torch
 
-from .base import PreAggregator
 from ..aggregators._chunking import select_adaptive_chunk_size
-from ..configs.backend import get_backend
 from ..aggregators.coordinate_wise._tiling import flatten_gradients
+from ..configs.backend import get_backend
 from ..engine.graph.subtask import SubTask
 from ..engine.storage.shared_store import (
     SharedTensorHandle,
-    register_tensor,
-    open_tensor,
     cleanup_tensor,
+    open_tensor,
+    register_tensor,
 )
+from .base import PreAggregator
 
 
 class NearestNeighborMixing(PreAggregator):
@@ -29,6 +30,7 @@ class NearestNeighborMixing(PreAggregator):
     Call:
         pre_aggregate(xs) -> List[y_1, ..., y_n] (same length as xs)
     """
+
     name = "pre-agg/nnm"
     supports_subtasks = True
     max_subtasks_inflight = 0
@@ -150,7 +152,9 @@ class NearestNeighborMixing(PreAggregator):
             try:
                 contrib = item
             except Exception as exc:  # pragma: no cover
-                raise ValueError(f"NNM received malformed partial at index {idx}: {item!r}") from exc
+                raise ValueError(
+                    f"NNM received malformed partial at index {idx}: {item!r}"
+                ) from exc
             D2 += np.asarray(contrib, dtype=dtype)
 
         try:

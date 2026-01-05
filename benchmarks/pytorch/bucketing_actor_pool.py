@@ -12,10 +12,11 @@ from typing import Sequence
 
 import torch
 
-from byzpy.pre_aggregators.bucketing import Bucketing
 from byzpy.engine.graph.ops import make_single_operator_graph
 from byzpy.engine.graph.pool import ActorPool, ActorPoolConfig
 from byzpy.engine.graph.scheduler import NodeScheduler
+from byzpy.pre_aggregators.bucketing import Bucketing
+
 try:
     from ._worker_args import DEFAULT_WORKER_COUNTS, coerce_worker_counts, parse_worker_counts
 except ImportError:
@@ -60,7 +61,9 @@ def _make_vectors(n: int, dim: int, seed: int) -> list[torch.Tensor]:
     return [torch.randn(dim, generator=gen) for _ in range(n)]
 
 
-def _time_direct(agg: Bucketing, vecs: Sequence[torch.Tensor], *, iterations: int, warmup: int) -> float:
+def _time_direct(
+    agg: Bucketing, vecs: Sequence[torch.Tensor], *, iterations: int, warmup: int
+) -> float:
     for _ in range(warmup):
         agg.pre_aggregate(vecs)
     start = time.perf_counter()

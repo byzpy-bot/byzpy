@@ -12,20 +12,30 @@ from typing import Sequence
 
 import torch
 
-from byzpy import run_operator, OperatorExecutor
+from byzpy import OperatorExecutor, run_operator
 from byzpy.aggregators.norm_wise.monna import MoNNA
 from byzpy.engine.graph.pool import ActorPoolConfig
 
 try:
-    from benchmarks.pytorch._worker_args import DEFAULT_WORKER_COUNTS, parse_worker_counts, coerce_worker_counts
+    from benchmarks.pytorch._worker_args import (
+        DEFAULT_WORKER_COUNTS,
+        coerce_worker_counts,
+        parse_worker_counts,
+    )
 except ImportError:
     try:
-        from ..pytorch._worker_args import DEFAULT_WORKER_COUNTS, parse_worker_counts, coerce_worker_counts
+        from ..pytorch._worker_args import (
+            DEFAULT_WORKER_COUNTS,
+            coerce_worker_counts,
+            parse_worker_counts,
+        )
     except ImportError:
         import sys
         from pathlib import Path
+
         sys.path.insert(0, str(Path(__file__).parent.parent / "pytorch"))
-        from _worker_args import DEFAULT_WORKER_COUNTS, parse_worker_counts, coerce_worker_counts  # type: ignore
+        from _worker_args import DEFAULT_WORKER_COUNTS  # type: ignore
+        from _worker_args import coerce_worker_counts, parse_worker_counts
 
 
 @dataclass(frozen=True)
@@ -43,7 +53,9 @@ def _parse_args() -> argparse.Namespace:
     parser.add_argument("--num-grads", type=int, default=64, help="Number of gradients (n).")
     parser.add_argument("--grad-dim", type=int, default=65536, help="Gradient dimension.")
     parser.add_argument("--f", type=int, default=8, help="Number of gradients to drop.")
-    parser.add_argument("--reference-index", type=int, default=0, help="Trusted reference vector index.")
+    parser.add_argument(
+        "--reference-index", type=int, default=0, help="Trusted reference vector index."
+    )
     parser.add_argument("--chunk-size", type=int, default=32, help="Partition size per subtask.")
     default_workers = ",".join(str(count) for count in DEFAULT_WORKER_COUNTS)
     parser.add_argument(
@@ -91,6 +103,7 @@ async def _time_run_operator(
     warmup: int,
 ) -> float:
     """Time run_operator() for single-threaded case (no pool overhead)."""
+
     async def _run_once():
         await run_operator(operator=operator, inputs={"gradients": grads}, pool_config=pool_config)
 
@@ -118,7 +131,6 @@ async def _time_executor(
         for _ in range(warmup):
             await executor.run({"gradients": grads})
 
-
         start = time.perf_counter()
         for _ in range(iterations):
             await executor.run({"gradients": grads})
@@ -133,7 +145,6 @@ async def _benchmark(args: argparse.Namespace) -> list[BenchmarkRun]:
     aggregator = MoNNA(f=args.f, reference_index=args.reference_index, chunk_size=args.chunk_size)
     direct_time = _time_direct(aggregator, grads, iterations=args.repeat, warmup=args.warmup)
 
-
     single_time = await _time_run_operator(
         aggregator,
         grads,
@@ -146,7 +157,6 @@ async def _benchmark(args: argparse.Namespace) -> list[BenchmarkRun]:
         BenchmarkRun("Direct aggregate (PyTorch)", direct_time),
         BenchmarkRun("Single-thread (run_operator)", single_time),
     ]
-
 
     for workers in worker_counts:
         pool_config = ActorPoolConfig(backend=args.pool_backend, count=workers)

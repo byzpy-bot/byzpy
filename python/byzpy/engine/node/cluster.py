@@ -1,11 +1,12 @@
 """Cluster management for decentralized nodes."""
+
 from __future__ import annotations
 
 from typing import Any, Dict, Optional, Union
 
-from .context import ProcessContext, NodeContext
-from .decentralized import DecentralizedNode
 from .application import NodeApplication
+from .context import NodeContext, ProcessContext
+from .decentralized import DecentralizedNode
 
 
 class DecentralizedCluster:
@@ -108,4 +109,3 @@ class DecentralizedCluster:
 
 
 __all__ = ["DecentralizedCluster"]
-

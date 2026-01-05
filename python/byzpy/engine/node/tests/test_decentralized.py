@@ -1,18 +1,19 @@
 from __future__ import annotations
 
 import asyncio
+
 import pytest
 import torch
 
 from byzpy.engine.graph.graph import ComputationGraph, GraphNode, graph_input
 from byzpy.engine.graph.operator import Operator
 from byzpy.engine.graph.pool import ActorPoolConfig
-from byzpy.engine.node.application import NodeApplication, HonestNodeApplication
+from byzpy.engine.node.application import HonestNodeApplication, NodeApplication
 from byzpy.engine.node.context import InProcessContext
 from byzpy.engine.node.decentralized import DecentralizedNode
 
-
 # Test Utilities and Fixtures
+
 
 def create_test_application() -> NodeApplication:
     """Create a test NodeApplication with minimal config."""
@@ -33,12 +34,14 @@ def create_test_node(node_id: str = "test-node") -> DecentralizedNode:
 
 class _DoubleOp(Operator):
     """Test operator that doubles the input."""
+
     def compute(self, inputs, *, context):
         return inputs["x"] * 2
 
 
 class _AddOp(Operator):
     """Test operator that adds two inputs."""
+
     def compute(self, inputs, *, context):
         return inputs["lhs"] + inputs["rhs"]
 
@@ -59,6 +62,7 @@ def create_add_graph() -> ComputationGraph:
 
 
 # Category 3: DecentralizedNode Core Functionality
+
 
 def test_decentralizednode_can_be_created():
     """Verify DecentralizedNode can be instantiated."""
@@ -141,6 +145,7 @@ async def test_decentralizednode_state_persistence():
 
 # Category 4: Message Handling
 
+
 @pytest.mark.asyncio
 async def test_decentralizednode_handle_incoming_message_processes():
     """Verify handle_incoming_message() processes messages correctly."""
@@ -149,6 +154,7 @@ async def test_decentralizednode_handle_incoming_message_processes():
 
     # Register a message handler
     received_messages = []
+
     async def handler(from_id, payload):
         received_messages.append((from_id, payload))
 
@@ -181,6 +187,7 @@ async def test_decentralizednode_message_processing_loop():
     await node.start()
 
     processed = []
+
     async def handler(from_id, payload):
         processed.append(payload)
 
@@ -213,6 +220,7 @@ async def test_decentralizednode_send_message():
 
 # Category 5: Integration with NodeApplication
 
+
 @pytest.mark.asyncio
 async def test_decentralizednode_uses_application_pipelines():
     """Verify node can execute pipelines registered on application."""
@@ -222,11 +230,13 @@ async def test_decentralizednode_uses_application_pipelines():
     )
 
     # Register aggregation pipeline
-    from byzpy.aggregators.base import Aggregator
     from typing import Sequence
+
+    from byzpy.aggregators.base import Aggregator
 
     class _SumAggregator(Aggregator):
         name = "sum"
+
         def aggregate(self, gradients: Sequence[torch.Tensor]) -> torch.Tensor:
             if not gradients:
                 raise ValueError("No gradients supplied.")
@@ -254,10 +264,7 @@ async def test_decentralizednode_uses_application_pipelines():
     await node.start()
 
     grads = [torch.tensor([1.0]), torch.tensor([2.0])]
-    result = await node.execute_pipeline(
-        app.AGGREGATION_PIPELINE,
-        {"gradients": grads}
-    )
+    result = await node.execute_pipeline(app.AGGREGATION_PIPELINE, {"gradients": grads})
 
     # Verify aggregation executed
     assert result is not None
@@ -278,6 +285,7 @@ async def test_decentralizednode_shares_actor_pool_with_scheduler():
 
 
 # Category 6: Integration with NodeScheduler
+
 
 @pytest.mark.asyncio
 async def test_decentralizednode_scheduler_executes_graphs():
@@ -312,6 +320,7 @@ async def test_decentralizednode_scheduler_receives_metadata():
 
 
 # Category 7: Error Handling and Edge Cases
+
 
 @pytest.mark.asyncio
 async def test_decentralizednode_start_idempotent():
@@ -359,6 +368,7 @@ def test_decentralizednode_validates_node_id():
 
 # Category 8: Multi-Node Scenarios (In-Process)
 
+
 @pytest.mark.asyncio
 async def test_two_nodes_execute_independently():
     """Verify two nodes can execute pipelines independently."""
@@ -400,6 +410,7 @@ async def test_multiple_nodes_exchange_messages():
 
     # For InProcessContext, we can directly send messages to node2's context
     received = []
+
     async def handler(from_id, payload):
         received.append((from_id, payload))
 
@@ -414,4 +425,3 @@ async def test_multiple_nodes_exchange_messages():
     assert len(received) == 1
     assert received[0][0] == "node1"
     assert received[0][1]["seq"] == 1
-

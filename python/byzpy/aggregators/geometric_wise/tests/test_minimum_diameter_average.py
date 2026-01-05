@@ -15,4 +15,3 @@ def test_mda_torch_simple():
     out = agg.aggregate(grads)
     exp = torch.mean(torch.stack(honest, dim=0), dim=0)
     assert torch.allclose(out, exp, atol=1e-7)
-

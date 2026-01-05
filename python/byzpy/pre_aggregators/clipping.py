@@ -4,17 +4,17 @@ from typing import Any, Iterable, List, Sequence
 
 import numpy as np
 
-from .base import PreAggregator
-from ..aggregators.coordinate_wise._tiling import flatten_gradients
 from ..aggregators._chunking import select_adaptive_chunk_size
+from ..aggregators.coordinate_wise._tiling import flatten_gradients
+from ..configs.backend import get_backend
 from ..engine.graph.subtask import SubTask
 from ..engine.storage.shared_store import (
     SharedTensorHandle,
-    register_tensor,
-    open_tensor,
     cleanup_tensor,
+    open_tensor,
+    register_tensor,
 )
-from ..configs.backend import get_backend
+from .base import PreAggregator
 
 try:
     import torch

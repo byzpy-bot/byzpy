@@ -15,6 +15,7 @@ from byzpy.attacks.sign_flip import SignFlipAttack
 from byzpy.engine.graph.ops import make_single_operator_graph
 from byzpy.engine.graph.pool import ActorPool, ActorPoolConfig
 from byzpy.engine.graph.scheduler import NodeScheduler
+
 try:
     from ._worker_args import DEFAULT_WORKER_COUNTS, coerce_worker_counts, parse_worker_counts
 except ImportError:
@@ -58,7 +59,9 @@ def _make_gradient(dim: int, seed: int) -> torch.Tensor:
     return torch.randn(dim, generator=gen)
 
 
-def _time_direct(attack: SignFlipAttack, grad: torch.Tensor, *, iterations: int, warmup: int) -> float:
+def _time_direct(
+    attack: SignFlipAttack, grad: torch.Tensor, *, iterations: int, warmup: int
+) -> float:
     for _ in range(warmup):
         attack.apply(base_grad=grad)
     start = time.perf_counter()

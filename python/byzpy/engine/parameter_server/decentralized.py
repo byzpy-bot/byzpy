@@ -1,4 +1,5 @@
 from __future__ import annotations
+
 """
 Backwards-compatible wrapper that uses the process-based ParameterServerRunner.
 """
@@ -6,8 +7,8 @@ from typing import Callable, List, Optional, Sequence
 
 import torch
 
+from ..node.actors import ByzantineNodeActor, HonestNodeActor
 from .runner import ParameterServerRunner
-from ..node.actors import HonestNodeActor, ByzantineNodeActor
 
 
 class DecentralizedParameterServer:

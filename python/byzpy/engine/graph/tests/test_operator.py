@@ -91,7 +91,12 @@ class _BarrieredOp(Operator):
         for _ in range(inputs["rounds"]):
             self.rounds += 1
             subtasks = [
-                SubTask(fn=_scale, args=(value,), kwargs={"factor": inputs["factor"]}, name=f"round-{self.rounds}-{idx}")
+                SubTask(
+                    fn=_scale,
+                    args=(value,),
+                    kwargs={"factor": inputs["factor"]},
+                    name=f"round-{self.rounds}-{idx}",
+                )
                 for idx, value in enumerate(inputs["parts"])
             ]
             ctx = OpContext(node_name="test")

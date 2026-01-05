@@ -1,14 +1,15 @@
 from __future__ import annotations
 
 import asyncio
+
 import pytest
 
 from byzpy.engine.graph.graph import ComputationGraph, GraphNode
 from byzpy.engine.graph.operator import MessageTriggerOp
 from byzpy.engine.graph.scheduler import MessageAwareNodeScheduler
 
-
 # Category 2: MessageTriggerOp Operator
+
 
 def test_messagetriggerop_can_be_created():
     """Verify MessageTriggerOp can be instantiated."""
@@ -76,4 +77,3 @@ def test_messagetriggerop_empty_message_type():
     """Verify MessageTriggerOp validates message type."""
     with pytest.raises(ValueError):
         MessageTriggerOp("")
-

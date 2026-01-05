@@ -1,4 +1,5 @@
 """Topology-aware message router for decentralized nodes."""
+
 from __future__ import annotations
 
 from typing import Any, Dict, List, Optional, Union
@@ -249,4 +250,3 @@ class MessageRouter:
 
 
 __all__ = ["MessageRouter"]
-

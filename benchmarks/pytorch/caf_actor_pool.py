@@ -16,9 +16,10 @@ from byzpy.engine.graph.pool import ActorPool, ActorPoolConfig
 from byzpy.engine.graph.scheduler import NodeScheduler
 
 try:
-    from ._worker_args import DEFAULT_WORKER_COUNTS, parse_worker_counts, coerce_worker_counts
+    from ._worker_args import DEFAULT_WORKER_COUNTS, coerce_worker_counts, parse_worker_counts
 except ImportError:
-    from _worker_args import DEFAULT_WORKER_COUNTS, parse_worker_counts, coerce_worker_counts  # type: ignore
+    from _worker_args import DEFAULT_WORKER_COUNTS  # type: ignore
+    from _worker_args import coerce_worker_counts, parse_worker_counts
 
 
 @dataclass(frozen=True)
@@ -37,7 +38,12 @@ def _parse_args() -> argparse.Namespace:
     parser.add_argument("--grad-dim", type=int, default=65536, help="Gradient dimension.")
     parser.add_argument("--f", type=int, default=8, help="Fault count parameter (f).")
     parser.add_argument("--chunk-size", type=int, default=32, help="Gradients per subtask.")
-    parser.add_argument("--power-iters", type=int, default=3, help="Power iterations for eigenvector estimate.")
+    parser.add_argument(
+        "--power-iters",
+        type=int,
+        default=3,
+        help="Power iterations for eigenvector estimate.",
+    )
     default_workers = ",".join(str(w) for w in DEFAULT_WORKER_COUNTS)
     parser.add_argument(
         "--pool-workers",
