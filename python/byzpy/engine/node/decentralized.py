@@ -76,6 +76,7 @@ class DecentralizedNode:
         self._message_handlers: Dict[str, Callable[[str, Any], Awaitable[None]]] = {}
         self._running = False
         self._message_task: Optional[asyncio.Task] = None
+        self._autonomous_tasks: Dict[str, asyncio.Task] = {}  # Track autonomous background tasks
 
         # Register default message handlers
         self._register_default_handlers()
@@ -219,12 +220,54 @@ class DecentralizedNode:
         # Can be extended for common patterns
         pass
 
+    async def start_autonomous_task(
+        self,
+        task_coro: Awaitable[Any],
+        name: str = "autonomous_task",
+    ) -> asyncio.Task:
+        """
+        Start an autonomous background task in this node's event loop.
+
+        Args:
+            task_coro: Coroutine to run as an autonomous task
+            name: Name for the task (used for tracking)
+
+        Returns:
+            The asyncio.Task that was created
+
+        Example:
+            >>> async def training_loop(node):
+            ...     while node._running:
+            ...         # Training logic
+            ...         await asyncio.sleep(0.1)
+            >>> task = await node.start_autonomous_task(training_loop(node), "training")
+        """
+        if not self._running:
+            raise RuntimeError("Node must be started before starting autonomous tasks")
+
+        if name in self._autonomous_tasks:
+            raise ValueError(f"Autonomous task with name '{name}' already exists")
+
+        task = asyncio.create_task(task_coro)
+        self._autonomous_tasks[name] = task
+        return task
+
     async def shutdown(self) -> None:
         """Gracefully shutdown the node."""
         if not self._running:
             return
 
         self._running = False
+
+        # Cancel all autonomous tasks
+        for name, task in self._autonomous_tasks.items():
+            if not task.done():
+                task.cancel()
+                try:
+                    await asyncio.wait_for(task, timeout=1.0)
+                except (asyncio.CancelledError, asyncio.TimeoutError):
+                    pass
+        self._autonomous_tasks.clear()
 
         # Cancel message processing task
         if self._message_task and not self._message_task.done():

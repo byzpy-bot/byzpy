@@ -176,6 +176,14 @@ class ProcessContext(NodeContext):
             except:
                 pass  # Skip if can't be included
 
+        # Include initialization callback if provided (for autonomous training loops)
+        # This callback is executed in the subprocess after node creation
+        if hasattr(node, '_init_callback') and node._init_callback is not None:
+            try:
+                node_config["init_callback"] = node._init_callback
+            except Exception:
+                pass  # Skip if callback can't be pickled
+
         config_blob = cloudpickle.dumps(node_config)
 
         # Start process
@@ -363,6 +371,20 @@ def _process_node_main(config_blob: bytes, inbox_q, outbox_q, cmd_q) -> None:
 
         # Start the node
         await node.start()
+
+        # Execute initialization callback if provided (for autonomous training loops)
+        # This allows handlers and training loops to be set up in the subprocess
+        init_callback = config.get("init_callback")
+        if init_callback is not None:
+            try:
+                await init_callback(node)
+            except Exception as e:
+                # Send error to parent process
+                outbox_q.put(cloudpickle.dumps({
+                    "type": "init_error",
+                    "error": str(e),
+                }))
+                # Continue even if initialization fails (node still processes messages)
 
         # Message processing loop
         running = True
