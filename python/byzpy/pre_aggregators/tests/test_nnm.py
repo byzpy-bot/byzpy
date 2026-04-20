@@ -1,5 +1,6 @@
 import torch
 
+from byzpy.engine.graph.batch import FlatTensorBatch
 from byzpy.engine.graph.operator import OpContext
 from byzpy.engine.storage.shared_store import cleanup_tensor
 from byzpy.pre_aggregators import NearestNeighborMixing
@@ -24,8 +25,16 @@ def test_nnm_chunk_matches_direct():
     partials = [task.fn(*task.args, **task.kwargs) for task in subtasks]
     reduced = chunked.reduce_subtasks(partials, inputs, context=None)
 
+    if isinstance(reduced, FlatTensorBatch):
+        try:
+            reduced_list = reduced.materialize_list()
+        finally:
+            reduced.release()
+    else:
+        reduced_list = list(reduced)
+
     stacked_direct = torch.stack(direct)
-    stacked_chunk = torch.stack(reduced)
+    stacked_chunk = torch.stack(reduced_list)
     assert torch.allclose(stacked_direct, stacked_chunk, atol=1e-6)
 
 

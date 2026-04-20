@@ -4,6 +4,7 @@ import asyncio
 from collections import defaultdict
 from typing import Any, Dict, List, Mapping, MutableMapping, Optional
 
+from .batch import release_if_batch
 from .graph import ComputationGraph, GraphInput, GraphNode
 from .operator import OpContext
 from .pool import ActorPool
@@ -54,6 +55,8 @@ class NodeScheduler:
             raise ValueError(f"Missing graph inputs: {missing}")
 
         cache: Dict[str, Any] = dict(inputs)
+        user_inputs = set(inputs.keys())
+        last_use = self.graph.last_use_map()
 
         for node in self.graph.nodes_in_order():
             node_inputs = self._resolve_inputs(node, cache)
@@ -64,6 +67,12 @@ class NodeScheduler:
             ctx = OpContext(node_name=node.name, metadata=metadata)
             result = await node.op.run(node_inputs, context=ctx, pool=self.pool)
             cache[node.name] = result
+
+            for evict_key in last_use.get(node.name, ()):
+                if evict_key in user_inputs:
+                    continue
+                if evict_key in cache:
+                    release_if_batch(cache[evict_key])
 
         return {name: cache[name] for name in self.graph.outputs}
 
@@ -223,6 +232,8 @@ class MessageAwareNodeScheduler(NodeScheduler):
             raise ValueError(f"Missing graph inputs: {missing}")
 
         cache: Dict[str, Any] = dict(resolved_inputs)
+        user_inputs = set(resolved_inputs.keys())
+        last_use = self.graph.last_use_map()
 
         for node in self.graph.nodes_in_order():
             node_inputs = await self._resolve_inputs(node, cache)
@@ -235,6 +246,12 @@ class MessageAwareNodeScheduler(NodeScheduler):
             ctx = OpContext(node_name=node.name, metadata=metadata)
             result = await node.op.run(node_inputs, context=ctx, pool=self.pool)
             cache[node.name] = result
+
+            for evict_key in last_use.get(node.name, ()):
+                if evict_key in user_inputs:
+                    continue
+                if evict_key in cache:
+                    release_if_batch(cache[evict_key])
 
         return {name: cache[name] for name in self.graph.outputs}
 

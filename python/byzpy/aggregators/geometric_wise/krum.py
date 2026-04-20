@@ -8,6 +8,7 @@ from typing import Any, Iterable, Sequence
 import numpy as np
 
 from ...configs.backend import get_backend
+from ...engine.graph.batch import FlatTensorBatch
 from ...engine.graph.subtask import SubTask
 from ...engine.storage.shared_store import (
     SharedTensorHandle,
@@ -17,7 +18,7 @@ from ...engine.storage.shared_store import (
 )
 from .._chunking import select_adaptive_chunk_size
 from ..base import Aggregator
-from ..coordinate_wise._tiling import flatten_gradients
+from ..coordinate_wise._tiling import as_flat_batch, flatten_gradients
 
 try:  # optional torch for _to_like conversion
     import torch
@@ -60,6 +61,9 @@ def _pairwise_sq_dists(stacked: Any) -> Any:
 
 def _materialize_gradients(gradients: Sequence[Any]) -> tuple[Any, Sequence[Any]]:
     """Ensure gradients are concrete arrays/tensors (handles -> numpy)."""
+    if isinstance(gradients, FlatTensorBatch):
+        arrays = gradients.materialize_list()
+        return gradients.like, arrays
     if _HAS_TORCH and isinstance(gradients[0], torch.Tensor):  # type: ignore[arg-type]
         return gradients[0], gradients
     if isinstance(gradients[0], np.ndarray):
@@ -140,8 +144,10 @@ class MultiKrum(Aggregator):
         self.q = q
         self.chunk_size = int(chunk_size)
         self._active_handle: SharedTensorHandle | None = None
+        self._active_owned: bool = False
         self._norms_handle: SharedTensorHandle | None = None
         self._flat_shape: tuple[int, ...] | None = None
+        self._like_template: Any | None = None
         self._active_workers: int = 1
 
     def aggregate(self, gradients: Sequence[Any]) -> Any:
@@ -195,24 +201,54 @@ class MultiKrum(Aggregator):
 
     def create_subtasks(self, inputs, *, context):  # type: ignore[override]
         gradients = inputs.get(self.input_key)
-        if not isinstance(gradients, Sequence) or not gradients:
+        if gradients is None:
             return []
 
-        n = len(gradients)
-        f, q = self.f, self.q
-        if f >= n - 1:
-            raise ValueError(f"f must satisfy 0 <= f < n-1 (got n={n}, f={f})")
-        if q > n - f:
-            raise ValueError(f"q must satisfy 1 <= q <= n - f (got n={n}, f={f}, q={q})")
+        if isinstance(gradients, FlatTensorBatch):
+            if len(gradients) == 0:
+                return []
+            n = len(gradients)
+            f, q = self.f, self.q
+            if f >= n - 1:
+                raise ValueError(f"f must satisfy 0 <= f < n-1 (got n={n}, f={f})")
+            if q > n - f:
+                raise ValueError(f"q must satisfy 1 <= q <= n - f (got n={n}, f={f}, q={q})")
+            flat_shape = gradients.flat_shape
+            source_dtype = np.dtype(gradients.handle.dtype)
+            if source_dtype == np.float32:
+                handle = gradients.handle
+                active_owned = False
+                with open_tensor(handle) as src:
+                    norms = np.sum(np.asarray(src) ** 2, axis=1, dtype=np.float64)
+            else:
+                with open_tensor(gradients.handle) as src:
+                    data = np.ascontiguousarray(np.asarray(src), dtype=np.float32)
+                handle = register_tensor(data)
+                active_owned = True
+                norms = np.sum(data * data, axis=1, dtype=np.float64)
+            like_template = gradients.like
+        else:
+            if not isinstance(gradients, Sequence) or not gradients:
+                return []
+            n = len(gradients)
+            f, q = self.f, self.q
+            if f >= n - 1:
+                raise ValueError(f"f must satisfy 0 <= f < n-1 (got n={n}, f={f})")
+            if q > n - f:
+                raise ValueError(f"q must satisfy 1 <= q <= n - f (got n={n}, f={f}, q={q})")
+            flat_shape, flat = flatten_gradients(gradients)
+            flat = np.ascontiguousarray(flat, dtype=np.float32)
+            handle = register_tensor(flat)
+            active_owned = True
+            norms = np.sum(flat * flat, axis=1, dtype=np.float64)
+            like_template = gradients[0]
 
-        flat_shape, flat = flatten_gradients(gradients)
-        flat = np.ascontiguousarray(flat, dtype=np.float32)
-        self._flat_shape = flat_shape
-        handle = register_tensor(flat)
-        norms = np.sum(flat * flat, axis=1, dtype=np.float64)
         norms_handle = register_tensor(norms)
+        self._flat_shape = flat_shape
         self._active_handle = handle
+        self._active_owned = active_owned
         self._norms_handle = norms_handle
+        self._like_template = like_template
         metadata = getattr(context, "metadata", None) or {}
         pool_size = int(metadata.get("pool_size") or 0)
         chunk = select_adaptive_chunk_size(n, self.chunk_size, pool_size=pool_size)
@@ -248,8 +284,10 @@ class MultiKrum(Aggregator):
             finally:
                 self._cleanup_handles()
 
-        gradients = inputs[self.input_key]
-        like, _ = _materialize_gradients(gradients)
+        like = self._like_template
+        if like is None:
+            gradients = inputs[self.input_key]
+            like, _ = _materialize_gradients(gradients)
         q = self.q
         if self._flat_shape is None:
             raise RuntimeError("MultiKrum reduce_subtasks missing flat shape state.")
@@ -288,14 +326,16 @@ class MultiKrum(Aggregator):
 
     def _cleanup_handles(self) -> None:
         handle = self._active_handle
-        if handle is not None:
+        if self._active_owned and handle is not None:
             cleanup_tensor(handle)
         norms_handle = self._norms_handle
         if norms_handle is not None:
             cleanup_tensor(norms_handle)
         self._active_handle = None
+        self._active_owned = False
         self._norms_handle = None
         self._flat_shape = None
+        self._like_template = None
         self._active_workers = 1
 
 

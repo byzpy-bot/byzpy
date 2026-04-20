@@ -11,6 +11,7 @@ import asyncio
 from collections import defaultdict
 from typing import Any, Dict, List, Mapping, Optional, Set, Tuple
 
+from .batch import release_if_batch
 from .graph import ComputationGraph, GraphInput, GraphNode
 from .operator import OpContext
 from .pool import ActorPool
@@ -139,6 +140,8 @@ class ParallelScheduler:
 
         # Initialize cache with inputs
         cache: Dict[str, Any] = dict(inputs)
+        user_inputs = set(inputs.keys())
+        last_use = self.graph.last_use_map()
 
         # Track remaining in-degrees (mutable copy)
         remaining: Dict[str, int] = dict(self._in_degree)
@@ -168,6 +171,7 @@ class ParallelScheduler:
                 node_name = ready.pop()
                 name, result = await self._execute_node(node_name, cache, base_metadata)
                 cache[name] = result
+                self._evict(name, cache, last_use, user_inputs)
                 # Update dependents
                 for dependent in self._dependents[name]:
                     remaining[dependent] -= 1
@@ -190,12 +194,26 @@ class ParallelScheduler:
                 # Process results and update dependents
                 for name, result in results:
                     cache[name] = result
+                    self._evict(name, cache, last_use, user_inputs)
                     for dependent in self._dependents[name]:
                         remaining[dependent] -= 1
                         if remaining[dependent] == 0:
                             ready.append(dependent)
 
         return {name: cache[name] for name in self.graph.outputs}
+
+    @staticmethod
+    def _evict(
+        node_name: str,
+        cache: Dict[str, Any],
+        last_use: Dict[str, List[str]],
+        user_inputs: Set[str],
+    ) -> None:
+        for evict_key in last_use.get(node_name, ()):
+            if evict_key in user_inputs:
+                continue
+            if evict_key in cache:
+                release_if_batch(cache[evict_key])
 
     async def _execute_node(
         self,

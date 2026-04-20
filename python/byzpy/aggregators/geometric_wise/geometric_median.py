@@ -5,6 +5,7 @@ from typing import Any, Iterable, Sequence
 import numpy as np
 
 from ...configs.backend import get_backend
+from ...engine.graph.batch import FlatTensorBatch
 from ...engine.graph.operator import OpContext
 from ...engine.graph.subtask import SubTask
 from ...engine.storage.shared_store import (
@@ -15,7 +16,7 @@ from ...engine.storage.shared_store import (
 )
 from .._chunking import select_adaptive_chunk_size
 from ..base import Aggregator
-from ..coordinate_wise._tiling import flatten_gradients
+from ..coordinate_wise._tiling import as_flat_batch, flatten_gradients
 
 try:  # optional torch dependency
     import torch
@@ -77,6 +78,8 @@ class GeometricMedian(Aggregator):
             raise ValueError("gradients must be a non-empty sequence")
 
         be = get_backend()
+        if isinstance(gradients, FlatTensorBatch):
+            gradients = gradients.materialize_list()
         like = gradients[0]
         X = be.stack([be.asarray(g, like=like) for g in gradients], axis=0)  # (n, ...)
 
@@ -105,14 +108,24 @@ class GeometricMedian(Aggregator):
 
     async def run_barriered_subtasks(self, inputs, *, context: OpContext, pool):  # type: ignore[override]
         gradients = inputs.get(self.input_key)
-        if not isinstance(gradients, Sequence) or not gradients:
+        if gradients is None:
             raise ValueError("GeometricMedian requires a non-empty gradient list.")
 
         backend = get_backend()
         backend_name = getattr(backend, "name", "")
-        flat_shape, flat = flatten_gradients(gradients)
-        data = np.asarray(flat, dtype=np.float64)
-        like = gradients[0]
+        if isinstance(gradients, FlatTensorBatch):
+            if len(gradients) == 0:
+                raise ValueError("GeometricMedian requires a non-empty gradient list.")
+            flat_shape = gradients.flat_shape
+            with open_tensor(gradients.handle) as src:
+                data = np.asarray(src, dtype=np.float64).copy()
+            like = gradients.like
+        else:
+            if not isinstance(gradients, Sequence) or not gradients:
+                raise ValueError("GeometricMedian requires a non-empty gradient list.")
+            flat_shape, flat = flatten_gradients(gradients)
+            data = np.asarray(flat, dtype=np.float64)
+            like = gradients[0]
         grad_handle = register_tensor(data)
         z = _init_center(data, init=self.init, backend_name=backend_name)
         center_handle = register_tensor(z.copy())

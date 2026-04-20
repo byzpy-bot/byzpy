@@ -87,6 +87,47 @@ class ComputationGraph:
         for name in self._order:
             yield self._nodes[name]
 
+    def last_use_map(self) -> Dict[str, List[str]]:
+        """
+        Compute, for each node in execution order, the list of cache entries
+        whose last consumer is this node.
+
+        The returned mapping associates ``consumer_name`` with the list of
+        dependency names (either other node names or graph input names) whose
+        last consumer (in topological order) is ``consumer_name``. After the
+        consumer executes, those entries can be safely evicted from the cache.
+
+        Returns
+        -------
+        Dict[str, List[str]]
+            Mapping from node name to list of cache keys that are no longer
+            needed after the node finishes. Graph outputs are never scheduled
+            for eviction. User-provided graph inputs are included, so callers
+            should filter them out if they must remain alive.
+        """
+        order_index: Dict[str, int] = {name: i for i, name in enumerate(self._order)}
+        last_consumer: Dict[str, str] = {}
+        for node in self._nodes.values():
+            consumer_idx = order_index[node.name]
+            for dep in node.inputs.values():
+                if isinstance(dep, GraphInput):
+                    key = dep.name
+                elif isinstance(dep, str):
+                    key = dep
+                else:
+                    continue
+                existing = last_consumer.get(key)
+                if existing is None or order_index.get(existing, -1) < consumer_idx:
+                    last_consumer[key] = node.name
+
+        outputs = set(self.outputs)
+        evict: Dict[str, List[str]] = {}
+        for key, consumer in last_consumer.items():
+            if key in outputs:
+                continue
+            evict.setdefault(consumer, []).append(key)
+        return evict
+
     def _collect_inputs(self) -> Set[str]:
         req: Set[str] = set()
         node_names = set(self._nodes)
