@@ -6,6 +6,7 @@ from typing import Any, Sequence
 import numpy as np
 
 from ...configs.backend import get_backend
+from ...engine.graph.batch import FlatTensorBatch
 from ...engine.graph.subtask import SubTask
 from ...engine.storage.shared_store import (
     SharedTensorHandle,
@@ -15,7 +16,7 @@ from ...engine.storage.shared_store import (
 )
 from .._chunking import select_adaptive_chunk_size
 from ..base import Aggregator
-from ..coordinate_wise._tiling import flatten_gradients
+from ..coordinate_wise._tiling import as_flat_batch, flatten_gradients
 
 try:  # optional torch dependency for conversion
     import torch
@@ -129,6 +130,8 @@ class CenteredClipping(Aggregator):
             raise ValueError("gradients must be a non-empty sequence")
 
         be = get_backend()
+        if isinstance(gradients, FlatTensorBatch):
+            gradients = gradients.materialize_list()
         like = gradients[0]
         X = be.stack([be.asarray(g, like=like) for g in gradients], axis=0)  # (n, ...)
 
@@ -157,14 +160,25 @@ class CenteredClipping(Aggregator):
 
     async def run_barriered_subtasks(self, inputs, *, context, pool):  # type: ignore[override]
         gradients = inputs.get(self.input_key)
-        if not isinstance(gradients, Sequence) or not gradients:
+        if gradients is None:
             raise ValueError("gradients must be a non-empty sequence")
 
-        flat_shape, flat = flatten_gradients(gradients)
-        like = gradients[0]
-        flat_np = np.asarray(flat)
-        if not flat_np.flags.c_contiguous:
-            flat_np = np.ascontiguousarray(flat_np)
+        if isinstance(gradients, FlatTensorBatch):
+            if len(gradients) == 0:
+                raise ValueError("gradients must be a non-empty sequence")
+            with open_tensor(gradients.handle) as src:
+                flat_np = np.ascontiguousarray(np.asarray(src))
+            flat_shape = gradients.flat_shape
+            like = gradients.like
+        else:
+            if not isinstance(gradients, Sequence) or not gradients:
+                raise ValueError("gradients must be a non-empty sequence")
+            flat_shape, flat = flatten_gradients(gradients)
+            like = gradients[0]
+            flat_np = np.asarray(flat)
+            if not flat_np.flags.c_contiguous:
+                flat_np = np.ascontiguousarray(flat_np)
+
         n = flat_np.shape[0]
 
         grad_handle = register_tensor(flat_np)
@@ -264,6 +278,6 @@ def _write_handle(handle: SharedTensorHandle, values: np.ndarray) -> None:
 
 def _to_like(arr: np.ndarray, like: Any) -> Any:
     if _HAS_TORCH and isinstance(like, torch.Tensor):  # type: ignore[arg-type]
-        return torch.from_numpy(arr).to(dtype=like.dtype)
+        return torch.from_numpy(arr).to(dtype=like.dtype, device=like.device)
     be = get_backend()
     return be.asarray(arr, like=like)

@@ -5,6 +5,7 @@ from typing import Any, Iterable, Sequence
 import numpy as np
 
 from ...configs.backend import get_backend
+from ...engine.graph.batch import FlatTensorBatch
 from ...engine.graph.subtask import SubTask
 from ...engine.storage.shared_store import (
     SharedTensorHandle,
@@ -14,7 +15,7 @@ from ...engine.storage.shared_store import (
 )
 from .._chunking import select_adaptive_chunk_size
 from ..base import Aggregator
-from ._tiling import flatten_gradients
+from ._tiling import as_flat_batch, flatten_gradients
 
 try:  # optional torch dependency
     import torch
@@ -72,7 +73,9 @@ class CoordinateWiseMedian(Aggregator):
             raise ValueError("chunk_size must be > 0")
         self.chunk_size = int(chunk_size)
         self._active_handle: SharedTensorHandle | None = None
+        self._active_owned: bool = False
         self._flat_shape: tuple[int, ...] | None = None
+        self._like_template: Any | None = None
 
     def aggregate(self, gradients: Sequence[Any]) -> Any:
         """
@@ -100,6 +103,8 @@ class CoordinateWiseMedian(Aggregator):
             raise ValueError("gradients must be a non-empty sequence")
 
         be = get_backend()
+        if isinstance(gradients, FlatTensorBatch):
+            gradients = gradients.materialize_list()
         like = gradients[0]
         arrs = [be.asarray(g, like=like) for g in gradients]
         stacked = be.stack(arrs, axis=0)  # (n, ...)
@@ -107,17 +112,29 @@ class CoordinateWiseMedian(Aggregator):
 
     def create_subtasks(self, inputs, *, context):  # type: ignore[override]
         gradients = inputs.get(self.input_key)
-        if not isinstance(gradients, Sequence) or not gradients:
+        if gradients is None:
             return []
+        if isinstance(gradients, FlatTensorBatch):
+            if len(gradients) == 0:
+                return []
+            batch = gradients
+            active_owned = False
+        else:
+            if not isinstance(gradients, Sequence) or not gradients:
+                return []
+            batch = as_flat_batch(gradients)
+            active_owned = True
 
-        flat_shape, flat = flatten_gradients(gradients)
-        self._flat_shape = flat_shape
-        handle = register_tensor(flat)
-        self._active_handle = handle
-        features = flat.shape[1]
+        self._flat_shape = batch.flat_shape
+        self._active_handle = batch.handle
+        self._active_owned = active_owned
+        self._like_template = batch.like
+
+        features = int(batch.handle.shape[1])
         metadata = getattr(context, "metadata", None) or {}
         pool_size = int(metadata.get("pool_size") or 0)
         chunk = select_adaptive_chunk_size(features, self.chunk_size, pool_size=pool_size)
+        handle = batch.handle
 
         def _iter_subtasks() -> Iterable[SubTask]:
             chunk_id = 0
@@ -135,26 +152,44 @@ class CoordinateWiseMedian(Aggregator):
 
     def reduce_subtasks(self, partials, inputs, *, context):  # type: ignore[override]
         if not partials:
+            self._cleanup_state()
             return super().compute(inputs, context=context)
 
-        like = inputs[self.input_key][0]
-        if self._flat_shape is None:
+        if self._flat_shape is None or self._active_handle is None:
             raise RuntimeError("CoordinateWiseMedian reduce_subtasks missing shape state.")
+        like = self._like_template
+        if like is None:
+            raw = inputs[self.input_key]
+            like = raw.like if isinstance(raw, FlatTensorBatch) else raw[0]
         feature_dim = int(np.prod(self._flat_shape))
+        result_dtype = np.dtype(self._active_handle.dtype)
 
         try:
-            assembled = np.zeros(feature_dim, dtype=np.float64)
+            assembled = np.zeros(feature_dim, dtype=result_dtype)
             for start, chunk in sorted(partials, key=lambda x: x[0]):
-                end = start + chunk.shape[0]
-                assembled[start:end] = chunk
+                chunk_np = np.asarray(chunk)
+                end = start + chunk_np.shape[0]
+                if chunk_np.dtype != result_dtype:
+                    assembled[start:end] = chunk_np.astype(result_dtype, copy=False)
+                else:
+                    assembled[start:end] = chunk_np
             reshaped = assembled.reshape(self._flat_shape)
             return _to_like(reshaped, like)
         finally:
-            handle = self._active_handle
-            if handle is not None:
-                cleanup_tensor(handle)
+            if self._active_owned and self._active_handle is not None:
+                cleanup_tensor(self._active_handle)
             self._active_handle = None
+            self._active_owned = False
             self._flat_shape = None
+            self._like_template = None
+
+    def _cleanup_state(self) -> None:
+        if self._active_owned and self._active_handle is not None:
+            cleanup_tensor(self._active_handle)
+        self._active_handle = None
+        self._active_owned = False
+        self._flat_shape = None
+        self._like_template = None
 
 
 def _median_chunk(handle: SharedTensorHandle, start: int, end: int) -> tuple[int, np.ndarray]:
@@ -173,6 +208,6 @@ def _median_chunk(handle: SharedTensorHandle, start: int, end: int) -> tuple[int
 
 def _to_like(arr: np.ndarray, like: Any) -> Any:
     if _HAS_TORCH and isinstance(like, torch.Tensor):  # type: ignore[arg-type]
-        return torch.from_numpy(arr).to(dtype=like.dtype)
+        return torch.from_numpy(arr).to(dtype=like.dtype, device=like.device)
     be = get_backend()
     return be.asarray(arr, like=like)

@@ -1,5 +1,6 @@
 import torch
 
+from byzpy.engine.graph.batch import FlatTensorBatch
 from byzpy.engine.graph.operator import OpContext
 from byzpy.engine.storage.shared_store import cleanup_tensor
 from byzpy.pre_aggregators import Bucketing
@@ -37,10 +38,21 @@ def test_bucketing_chunk_matches_direct():
         partials, inputs, context=OpContext(node_name="bkt", metadata={})
     )
 
-    def _stack(vals):
-        return torch.stack([v if isinstance(v, torch.Tensor) else torch.as_tensor(v) for v in vals])
+    try:
+        if isinstance(reduced, FlatTensorBatch):
+            reduced_list = reduced.materialize_list()
+        else:
+            reduced_list = list(reduced)
 
-    assert torch.allclose(_stack(direct), _stack(reduced), atol=1e-6)
+        def _stack(vals):
+            return torch.stack(
+                [v if isinstance(v, torch.Tensor) else torch.as_tensor(v) for v in vals]
+            )
+
+        assert torch.allclose(_stack(direct), _stack(reduced_list), atol=1e-6)
+    finally:
+        if isinstance(reduced, FlatTensorBatch):
+            reduced.release()
 
 
 def test_bucketing_subtasks_scale_with_pool():

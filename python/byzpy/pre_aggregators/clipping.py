@@ -5,8 +5,10 @@ from typing import Any, Iterable, List, Sequence
 import numpy as np
 
 from ..aggregators._chunking import select_adaptive_chunk_size
-from ..aggregators.coordinate_wise._tiling import flatten_gradients
+from ..aggregators.coordinate_wise._tiling import as_flat_batch, flatten_gradients
 from ..configs.backend import get_backend
+from ..engine.graph.batch import FlatTensorBatch
+from ..engine.graph.batch import _is_disabled as _flat_batch_disabled
 from ..engine.graph.subtask import SubTask
 from ..engine.storage.shared_store import (
     SharedTensorHandle,
@@ -46,7 +48,9 @@ class Clipping(PreAggregator):
             raise ValueError("chunk_size must be > 0")
         self.threshold = float(threshold)
         self.chunk_size = int(chunk_size)
-        self._handle: SharedTensorHandle | None = None
+        self._in_handle: SharedTensorHandle | None = None
+        self._in_owned: bool = False
+        self._out_handle: SharedTensorHandle | None = None
         self._flat_shape: tuple[int, ...] | None = None
         self._like_template: Any | None = None
 
@@ -58,22 +62,47 @@ class Clipping(PreAggregator):
         outputs: List[Any] = []
         for row in clipped:
             reshaped = row.reshape(flat_shape)
-            outputs.append(_to_like(reshaped, xs[0]))
+            outputs.append(
+                _to_like(reshaped, xs[0] if not isinstance(xs, FlatTensorBatch) else xs.like)
+            )
         return outputs
 
     def create_subtasks(self, inputs, *, context):  # type: ignore[override]
         xs = inputs.get(self.input_key)
-        if not isinstance(xs, Sequence) or not xs:
+        if xs is None:
             return []
-        flat_shape, flat = flatten_gradients(xs)
-        self._flat_shape = flat_shape
-        self._like_template = xs[0]
-        handle = register_tensor(flat)
-        self._handle = handle
-        n = flat.shape[0]
+        if isinstance(xs, FlatTensorBatch):
+            if len(xs) == 0:
+                return []
+            input_batch = xs
+            in_owned = False
+        else:
+            if not isinstance(xs, Sequence) or not xs:
+                return []
+            input_batch = as_flat_batch(xs)
+            in_owned = True
+
+        n, feature_dim = input_batch.handle.shape
+        if n == 0:
+            if in_owned:
+                cleanup_tensor(input_batch.handle)
+            return []
+
+        self._in_handle = input_batch.handle
+        self._in_owned = in_owned
+        self._flat_shape = input_batch.flat_shape
+        self._like_template = input_batch.like
+
+        out_array = np.zeros((n, feature_dim), dtype=np.dtype(input_batch.handle.dtype))
+        out_handle = register_tensor(out_array)
+        self._out_handle = out_handle
+
         metadata = getattr(context, "metadata", None) or {}
         pool_size = int(metadata.get("pool_size") or 0)
         chunk = select_adaptive_chunk_size(n, self.chunk_size, pool_size=pool_size)
+
+        in_handle = input_batch.handle
+        threshold = self.threshold
 
         def _iter() -> Iterable[SubTask]:
             chunk_id = 0
@@ -81,7 +110,7 @@ class Clipping(PreAggregator):
                 end = min(n, start + chunk)
                 yield SubTask(
                     fn=_clipping_chunk,
-                    args=(handle, start, end, self.threshold),
+                    args=(in_handle, out_handle, start, end, threshold),
                     kwargs={},
                     name=f"clipping_chunk_{chunk_id}",
                 )
@@ -91,23 +120,52 @@ class Clipping(PreAggregator):
 
     def reduce_subtasks(self, partials, inputs, *, context):  # type: ignore[override]
         if not partials:
+            self._cleanup_state()
             return super().compute(inputs, context=context)
-        if self._handle is None or self._flat_shape is None or self._like_template is None:
+        if self._out_handle is None or self._flat_shape is None or self._like_template is None:
             raise RuntimeError("Clipping missing state for reduction.")
 
-        try:
-            with open_tensor(self._handle) as flat:
-                data = np.array(flat, copy=False)
+        out_handle = self._out_handle
+        flat_shape = self._flat_shape
+        like = self._like_template
+
+        if self._in_owned and self._in_handle is not None:
+            cleanup_tensor(self._in_handle)
+        self._in_handle = None
+        self._in_owned = False
+        self._out_handle = None
+        self._flat_shape = None
+        self._like_template = None
+
+        if _flat_batch_disabled():
+            try:
+                with open_tensor(out_handle) as flat:
+                    data = np.array(flat, copy=True)
                 outputs: List[Any] = []
-                for row in data:
-                    reshaped = np.array(row, copy=True).reshape(self._flat_shape)
-                    outputs.append(_to_like(reshaped, self._like_template))
+                for i in range(data.shape[0]):
+                    reshaped = data[i].reshape(flat_shape)
+                    outputs.append(_to_like(reshaped, like))
                 return outputs
-        finally:
-            cleanup_tensor(self._handle)
-            self._handle = None
-            self._flat_shape = None
-            self._like_template = None
+            finally:
+                cleanup_tensor(out_handle)
+
+        return FlatTensorBatch(
+            handle=out_handle,
+            flat_shape=flat_shape,
+            like=like,
+            owns_handle=True,
+        )
+
+    def _cleanup_state(self) -> None:
+        if self._in_owned and self._in_handle is not None:
+            cleanup_tensor(self._in_handle)
+        if self._out_handle is not None:
+            cleanup_tensor(self._out_handle)
+        self._in_handle = None
+        self._in_owned = False
+        self._out_handle = None
+        self._flat_shape = None
+        self._like_template = None
 
 
 def _clip_rows(flat: np.ndarray, threshold: float) -> np.ndarray:
@@ -117,13 +175,19 @@ def _clip_rows(flat: np.ndarray, threshold: float) -> np.ndarray:
     return flat * factors
 
 
-def _clipping_chunk(handle: SharedTensorHandle, start: int, end: int, threshold: float):
-    with open_tensor(handle) as flat:
-        chunk = np.array(flat[start:end], copy=False)
+def _clipping_chunk(
+    in_handle: SharedTensorHandle,
+    out_handle: SharedTensorHandle,
+    start: int,
+    end: int,
+    threshold: float,
+):
+    with open_tensor(in_handle) as src, open_tensor(out_handle) as dst:
+        chunk = np.asarray(src[start:end])
         norms = np.linalg.norm(chunk, axis=1, keepdims=True)
         denom = np.maximum(norms, 1e-12)
         factors = np.minimum(1.0, threshold / denom)
-        chunk *= factors
+        dst[start:end, :] = chunk * factors
     return start, None
 
 
